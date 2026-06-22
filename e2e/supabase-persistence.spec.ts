@@ -10,6 +10,10 @@ const SUPABASE = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
 const EMAIL = process.env.E2E_TEST_EMAIL ?? "";
 const PASSWORD = process.env.E2E_TEST_PASSWORD ?? "";
 
+// These tests share one live user + workspace, so run them serially to avoid
+// races on the shared remote state. Run the live suite with --workers=1.
+test.describe.configure({ mode: "serial" });
+
 async function signIn(page: Page) {
   await page.goto("/sign-in");
   await page.getByLabel("Email").fill(EMAIL);
@@ -42,16 +46,21 @@ test.describe("Supabase persistence", () => {
 
   test("favorite + review state on a gallery result persists across reload", async ({ page }) => {
     await page.goto("/gallery");
-    // Open the first result.
-    await page.locator("a[href^='/gallery/']").first().click();
-    await expect.poll(() => new URL(page.url()).pathname.startsWith("/gallery/")).toBe(true);
+    // Wait for results to hydrate from Supabase (signed-URL round trips), then open one.
+    const firstResult = page.locator("a[href^='/gallery/']").first();
+    await firstResult.waitFor({ state: "visible", timeout: 20_000 });
+    await firstResult.click();
+    await page.waitForURL(/\/gallery\/.+/, { timeout: 20_000 });
 
     await page.getByRole("button", { name: /add to favorites|favorited/i }).click();
     await page.getByRole("button", { name: /^approve|approved$/i }).click();
+    // Let the optimistic write flush to Supabase before reloading.
+    await expect(page.getByRole("button", { name: /favorited/i })).toBeVisible();
+    await page.waitForTimeout(500);
 
     await page.reload();
-    await expect(page.getByRole("button", { name: /favorited/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /approved/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /favorited/i })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: /approved/i })).toBeVisible({ timeout: 20_000 });
   });
 
   test("mobile Studio mock generation persists a job + result", async ({ page }) => {

@@ -15,6 +15,10 @@ const SUPABASE = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
 const EMAIL = process.env.E2E_TEST_EMAIL ?? "";
 const PASSWORD = process.env.E2E_TEST_PASSWORD ?? "";
 
+// Shares the live user (sign in/out), so run serially. Use --workers=1 for the
+// live suite to avoid cross-file races on the shared remote session/workspace.
+test.describe.configure({ mode: "serial" });
+
 test.describe("Supabase auth", () => {
   test.skip(!SUPABASE, "requires a configured Supabase env (NEXT_PUBLIC_SUPABASE_URL)");
 
@@ -36,8 +40,9 @@ test.describe("Supabase auth", () => {
       // Lands on the application shell.
       await expect.poll(() => new URL(page.url()).pathname).toBe("/");
 
-      // Protected navigation works while authenticated.
-      await page.getByRole("link", { name: "Gallery", exact: true }).click();
+      // Protected navigation works while authenticated. ("Gallery" appears in
+      // both the sidebar and the mobile nav, so target the first visible link.)
+      await page.getByRole("link", { name: "Gallery", exact: true }).first().click();
       await expect.poll(() => new URL(page.url()).pathname).toBe("/gallery");
 
       // Sign out via the account menu returns to /sign-in.

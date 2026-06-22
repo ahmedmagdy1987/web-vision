@@ -10,6 +10,7 @@ import "server-only";
  */
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getDataBackend } from "@/lib/config/backend";
 import type { Database } from "./database.types";
 import { getPublicSupabaseEnv } from "./env";
 
@@ -22,8 +23,8 @@ function isPublicPath(pathname: string): boolean {
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
   const { url, anonKey } = getPublicSupabaseEnv();
 
-  // Demo mode: do not enforce auth.
-  if (!url || !anonKey) {
+  // Demo mode (no config, or backend explicitly set to "local"): do not enforce auth.
+  if (getDataBackend() === "local" || !url || !anonKey) {
     return NextResponse.next({ request });
   }
 

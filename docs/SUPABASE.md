@@ -1,16 +1,21 @@
-# Web Vision — Supabase Foundation (Phase 3)
+# Web Vision — Supabase Foundation (Phase 3 / Phase 3.1)
 
 This document describes the Supabase-backed authentication, database, and private
-cloud storage foundation added in Phase 3, and the steps an owner must perform to
-connect a real Supabase project.
+cloud storage foundation (Phase 3) and its **live connection + runtime verification**
+(Phase 3.1).
 
-> **Status:** the Supabase backend is **code-complete and statically verified**
-> (typecheck, lint, production build, and unit tests all pass), but it has **not
-> been runtime-verified**: this environment has no Docker (so `supabase start`
-> cannot run a local stack) and no remote project is linked. The application runs
-> by default on the **local demo backend (localStorage)**. Supabase activates only
-> when its env vars are present. Treat this as **a locally-verified Supabase
-> foundation awaiting remote project connection.**
+> **Status (Phase 3.1 — live):** the Supabase backend is **connected to a real
+> dedicated project (`web-vision-malahi`) and runtime-verified.** Migrations are
+> applied to the live database, RLS + private Storage are enforced, an owner is
+> bootstrapped, and authentication, live CRUD, organization isolation, and signed
+> private-Storage URLs were all verified against the cloud project (see
+> [`../artifacts/web-vision-phase-3-1/REVIEW.md`](../artifacts/web-vision-phase-3-1/REVIEW.md)).
+> This is a **secured cloud-backed internal beta**. The local demo backend
+> (localStorage) is preserved for tests and offline development; a configured
+> Supabase environment never silently falls back to it.
+>
+> Note: local-stack development (`supabase start`) still requires Docker; the live
+> verification was performed directly against the remote project, which does not.
 
 ---
 
@@ -83,21 +88,23 @@ warning when Supabase mode is selected without the public env.
 `supabase start` prints the local API URL, anon key, and service-role key. Until
 Docker is available, the app continues to run on the demo backend with `npm run dev`.
 
-## 4. Remote project setup (owner action required)
+## 4. Remote project setup (DONE for `web-vision-malahi`)
 
-These steps require Supabase credentials this environment does not have:
+The repository is already linked to the dedicated project and the migrations have
+been pushed live. To reproduce on another project:
 
 ```bash
-supabase login                                  # opens browser auth
+supabase login                                  # browser auth (one-time)
 supabase link --project-ref <YOUR_PROJECT_REF>  # link this repo to the project
-supabase db push                                # apply migrations to the remote DB
-supabase db seed                                # (optional) load supabase/seed.sql
+supabase db push --linked                       # apply migrations to the remote DB
+supabase db query --linked --file supabase/seed.sql   # load demo data (idempotent)
 ```
 
-Then set `.env.local` (local dev) and the hosting platform env (e.g. Vercel) with
-the project URL, anon key, and service-role key from **Project Settings → API**.
-Do **not** initialize the project with extra schema; the migrations are the
-source of truth.
+Then copy `.env.example` → `.env.local` and fill in the project URL, anon key, and
+service-role key from **Project Settings → API**, and set the same on the hosting
+platform (e.g. Vercel). Do **not** initialize the project with extra schema; the
+migrations in `supabase/migrations/` are the source of truth. `.env.local` is
+gitignored and must never be committed.
 
 ## 5. Migrations & seed
 
@@ -108,10 +115,14 @@ Versioned SQL lives in `supabase/migrations/`:
 | `20260622120000_init_schema.sql` | Tables, enums, indexes, constraints, `updated_at` triggers |
 | `20260622120100_rls_policies.sql` | Membership helpers, auth bootstrap, RLS policies |
 | `20260622120200_storage.sql` | Private bucket + object-level storage policies |
+| `20260623120000_grants.sql` | **Phase 3.1:** grants DML + execute to `authenticated`/`service_role` (the CLI migration role did not inherit project default privileges, which would have blocked the app's `authenticated` role). RLS still governs row access. |
 
 `supabase/seed.sql` seeds one organization, brands, categories, products, and
-locations (no auth users, no secrets). Apply with `supabase db reset` (local) or
-load against a linked project.
+locations (no auth users, no secrets). Apply against a linked project with
+`supabase db query --linked --file supabase/seed.sql` (idempotent — fixed UUIDs +
+`on conflict do nothing`), or `supabase db reset` locally. Generation jobs/results
+carry binary objects and so are seeded at runtime by
+`scripts/seed-results.mjs` (see §13).
 
 ## 6. Authentication & owner bootstrap
 
@@ -127,15 +138,28 @@ Auth is **email + password** via Supabase Auth, wired for the Next.js App Router
 
 **Bootstrapping the first owner:**
 
-1. Create a user in Supabase Auth (Dashboard → Authentication → Add user, or sign
-   up through the app once email auth is enabled). The `handle_new_user` trigger
-   creates their `profiles` row automatically.
+The dedicated project was bootstrapped with `scripts/bootstrap-owner.mjs` (§13),
+which idempotently creates a confirmed owner/test user via the Admin API, lets the
+`handle_new_user` trigger create the matching `profiles` row, and grants `owner`
+membership of the seeded Malahi org. Its generated password is written **only** to
+gitignored `.env.local` (`E2E_TEST_EMAIL` / `E2E_TEST_PASSWORD`) — never committed,
+printed, or passed as a shell argument.
+
+For a **real owner** (recommended), do not invent a password:
+
+1. Create/invite the user in Supabase Auth (Dashboard → Authentication → Add user
+   or **Invite**, or `auth.admin.inviteUserByEmail` server-side) — the user sets
+   their own password / accepts the invite. The `handle_new_user` trigger creates
+   their `profiles` row automatically.
 2. Make them an organization owner, either:
    - **As that user:** call the `create_organization(p_name, p_slug)` RPC (the
      app's org-onboarding screen does this) — it inserts the org and an `owner`
      membership atomically; or
-   - **As an admin (SQL / service role):** insert the organization, then an
-     `organization_members` row with `role = 'owner'`, `status = 'active'`.
+   - **As an admin (SQL / service role):** insert an `organization_members` row
+     for an existing org with `role = 'owner'`, `status = 'active'`.
+
+Never paste a password or secret into a prompt; the owner sets it via the
+dashboard/invite flow.
 
 ## 7. Storage strategy
 
@@ -194,11 +218,20 @@ npm run typecheck     # tsc --noEmit
 npm run lint          # eslint (0 warnings)
 npm run build         # next build (production)
 npm run test:unit     # vitest — pure logic (mappers, paths, permissions, validation, aspect, env)
-npm run build && npm run test:e2e   # Playwright (demo backend by default)
+
+# Demo-backend regression (localStorage; supabase specs auto-skip):
+WV_FORCE_DEMO=1 npm run build && WV_FORCE_DEMO=1 npx playwright test
+
+# Live Supabase suite (reads .env.local; build in Supabase mode first):
+npm run build
+npx playwright test e2e/supabase-auth.spec.ts e2e/supabase-persistence.spec.ts e2e/supabase-smoke.spec.ts --workers=1
 ```
 
-Supabase-dependent integration/E2E specs are authored but **guarded to skip**
-when Supabase env is absent; run them against a linked/local project.
+`playwright.config.ts` loads `.env.local` for live runs (so the guarded specs run
+instead of skipping) and honors `WV_FORCE_DEMO=1` to force the demo backend. Run
+the live specs with `--workers=1` — they share one live user/workspace, so they
+are serial to avoid races. SQL/RLS + storage are verified with the helper scripts
+in §13.
 
 ## 11. Backup & recovery
 
@@ -215,3 +248,41 @@ when Supabase env is absent; run them against a linked/local project.
 implement the interface and return it from `getImageAdapter()`. Job/result
 persistence (Supabase + Storage) already flows through the selected repositories,
 so the provider swap requires **no repository changes**.
+
+## 13. Operational scripts (Phase 3.1)
+
+Run with Node's `--env-file` so they read the gitignored `.env.local` (they use the
+service-role key server-side and never print secrets):
+
+| Script | Purpose |
+| --- | --- |
+| `scripts/bootstrap-owner.mjs` | Idempotently create the owner/test user (Admin API), ensure its profile, and grant `owner` membership of the seeded org. Writes generated creds to `.env.local` only. |
+| `scripts/seed-results.mjs` | Seed a completed demo generation job + 2 results with real placeholder objects in private Storage (idempotent; resets review/favorite state on re-run). |
+| `scripts/rls-matrix.mjs` | Verify the RLS / organization-isolation matrix via real per-role authenticated API sessions, then clean up the temporary identities/rows. |
+| `scripts/verify-asset-ops.mjs` | Verify private-Storage asset ops via the owner session: upload → signed URL resolves → replace primary → delete. |
+
+```bash
+node --env-file=.env.local scripts/bootstrap-owner.mjs
+node --env-file=.env.local scripts/seed-results.mjs
+node --env-file=.env.local scripts/rls-matrix.mjs
+node --env-file=.env.local scripts/verify-asset-ops.mjs
+```
+
+`tests/integration/rls.sql` additionally provides copy-pasteable psql RLS checks.
+
+## 14. Phase 3.1 runtime fixes
+
+- **API-role grants** — `20260623120000_grants.sql` (see §5).
+- **Product image editing** — `SupabaseProductRepository.updateProduct` now
+  reconciles the image set (upload new, replace primary, remove deleted) with
+  orphan cleanup, so editing a product's images after creation persists.
+- **Optimistic writes** — on a failed remote write the local cache rolls back and a
+  recoverable toast is shown (`RepositoryErrorReporter`); refresh reflects the true
+  server state.
+- **Dependency audit** — 2 moderate advisories (`postcss <8.5.10`, transitive via
+  `next@16.2.9`). The only offered fix is a forced `next@9` downgrade, which is
+  rejected; the issue is build-time and not reachable at runtime. Accepted risk;
+  resolves when `next` ships a patched `postcss`.
+- **localStorage importer** — `src/lib/migration/local-import.ts` remains a typed,
+  non-UI utility (no automatic import); wiring an owner-only import screen is
+  deferred to avoid unnecessary risk.

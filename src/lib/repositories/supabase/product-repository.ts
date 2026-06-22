@@ -191,8 +191,6 @@ export class SupabaseProductRepository extends SupabaseCollection<Product> imple
     const orgId = requireActiveOrgId();
     const prev = this.getById(id);
     if (!prev) return undefined;
-    // Scalar + category/brand update. Image set changes go through addProduct or
-    // a dedicated asset flow; see Phase 3 REVIEW (known limitation).
     return this.optimistic({
       apply: () =>
         this.cacheUpdate(id, (p) => ({
@@ -221,10 +219,78 @@ export class SupabaseProductRepository extends SupabaseCollection<Product> imple
           })
           .eq("id", id);
         if (error) throw error;
+        // Reconcile the image set when the caller supplied one (add new uploads,
+        // replace the primary, remove deleted images) with orphan cleanup.
+        if (input.referenceImages !== undefined || input.mainImage !== undefined) {
+          await this.reconcileAssets(orgId, id, input.mainImage, input.referenceImages ?? []);
+        }
       },
       rollback: () => this.cacheReplace(id, prev),
       context: "update product",
+      reconcile: true,
     });
+  }
+
+  /** Diff the desired image set against stored product_assets: upload new ones,
+   * update role/primary/order on kept ones, delete removed rows + objects. New
+   * images are detected by a data: URL; existing ones keep their asset id. */
+  private async reconcileAssets(
+    orgId: ID,
+    productId: ID,
+    mainImage: ProductInput["mainImage"],
+    referenceImages: ImageAsset[],
+  ): Promise<void> {
+    const supabase = db();
+    const desired = [
+      ...(mainImage ? [{ img: mainImage, role: "main" as const, isPrimary: true, sort: 0 }] : []),
+      ...referenceImages.map((img, i) => ({ img, role: "reference" as const, isPrimary: false, sort: i + 1 })),
+    ];
+    const { data: existingRows } = await supabase.from("product_assets").select("*").eq("product_id", productId);
+    const existing = (existingRows ?? []) as ProductAssetRow[];
+    const keptIds = new Set(desired.filter((d) => !d.img.url.startsWith("data:")).map((d) => d.img.id));
+
+    const uploaded: string[] = [];
+    try {
+      // New uploads
+      for (const d of desired.filter((x) => x.img.url.startsWith("data:"))) {
+        const assetId = newId();
+        const path = productAssetPath(orgId, productId, assetId, d.img.mimeType);
+        const { blob } = dataUrlToBlob(d.img.url);
+        await uploadObject(supabase, { path, body: blob, contentType: d.img.mimeType });
+        uploaded.push(path);
+        const { error } = await supabase.from("product_assets").insert({
+          id: assetId,
+          product_id: productId,
+          asset_role: d.role,
+          storage_bucket: "web-vision",
+          storage_path: path,
+          mime_type: d.img.mimeType,
+          width: d.img.width ?? null,
+          height: d.img.height ?? null,
+          size_bytes: d.img.size ?? null,
+          sort_order: d.sort,
+          is_primary: d.isPrimary,
+          created_by: getActiveUserId(),
+        });
+        if (error) throw error;
+      }
+      // Update kept rows (role/primary/order may have changed)
+      for (const d of desired.filter((x) => !x.img.url.startsWith("data:"))) {
+        await supabase
+          .from("product_assets")
+          .update({ asset_role: d.role, is_primary: d.isPrimary, sort_order: d.sort })
+          .eq("id", d.img.id);
+      }
+      // Delete removed rows + their storage objects
+      const toDelete = existing.filter((r) => !keptIds.has(r.id));
+      if (toDelete.length) {
+        await supabase.from("product_assets").delete().in("id", toDelete.map((r) => r.id));
+        await removeObjects(supabase, toDelete.map((r) => r.storage_path));
+      }
+    } catch (e) {
+      if (uploaded.length) await removeObjects(supabase, uploaded);
+      throw e;
+    }
   }
 
   setStatus(id: ID, status: Product["status"]): Product | undefined {

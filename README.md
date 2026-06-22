@@ -30,15 +30,21 @@ selects its backend at runtime:
 - **Supabase backend:** set `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`
   (copy `.env.example` → `.env.local`) to enable auth, Postgres, and private Storage.
 
-> **Status:** the Supabase backend is **code-complete and statically verified**
-> (typecheck, lint, build, unit tests) but **not yet runtime-verified** — it needs
-> Docker (`supabase start`) and/or a linked remote project. See
+> **Status (Phase 3.1 — live):** the Supabase backend is now **connected to a real
+> dedicated project and runtime-verified** — authentication, live Postgres CRUD,
+> RLS/organization isolation, and private Storage were all exercised against the
+> cloud project. This is a **secured cloud-backed internal beta**. The localStorage
+> demo backend is preserved for tests and offline development. See
 > [`docs/SUPABASE.md`](docs/SUPABASE.md) for setup, the RLS/role model, storage
-> strategy, auth bootstrap, and the Phase 4 image-provider seam, and
+> strategy, auth bootstrap, and the Phase 4 image-provider seam;
+> [`artifacts/web-vision-phase-3-1/REVIEW.md`](artifacts/web-vision-phase-3-1/REVIEW.md)
+> for the live-connection review; and
 > [`artifacts/web-vision-phase-3/REVIEW.md`](artifacts/web-vision-phase-3/REVIEW.md)
-> for the phase review.
+> for the original foundation review.
 
-Additional quality gate: `npm run test:unit` (Vitest unit tests).
+Additional quality gate: `npm run test:unit` (Vitest unit tests). Live Supabase
+verification (requires `.env.local` configured for the project):
+`npx playwright test e2e/supabase-auth.spec.ts e2e/supabase-persistence.spec.ts e2e/supabase-smoke.spec.ts --workers=1`.
 
 ## Getting Started
 
