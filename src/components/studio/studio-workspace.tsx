@@ -24,6 +24,7 @@ import { AssetsPanel } from "./assets-panel";
 import { CanvasPreview } from "./canvas-preview";
 import { ControlsPanel } from "./controls-panel";
 import { InstructionsPreview } from "./instructions-preview";
+import { ReadinessSummary, type ReadinessItem } from "./readiness-summary";
 import { createInitialState, studioReducer } from "./studio-state";
 
 // Module-scoped one-shot guard so the prefill handoff is consumed exactly once
@@ -127,6 +128,24 @@ export function StudioWorkspace() {
     if (!state.newLocation.name.trim()) issues.push("Name the new location.");
   }
   const canGenerate = issues.length === 0 && !generating && !!brand;
+
+  const locationReady =
+    state.locationMode === "existing"
+      ? !!selectedLocation
+      : state.newLocation.images.length > 0 && !!state.newLocation.name.trim();
+  const readinessItems: ReadinessItem[] = [
+    { label: "Brand", done: !!brand },
+    { label: "Logo", done: !!logo },
+    {
+      label: selectedProducts.length > 0 ? `${selectedProducts.length} product${selectedProducts.length === 1 ? "" : "s"}` : "Products",
+      done: selectedProducts.length > 0,
+    },
+    { label: "Location", done: locationReady },
+    {
+      label: `${state.settings.outputCount} output${state.settings.outputCount === 1 ? "" : "s"}`,
+      done: state.settings.outputCount >= 1,
+    },
+  ];
 
   // ---- Generate --------------------------------------------------------
   const handleGenerate = async () => {
@@ -271,6 +290,7 @@ export function StudioWorkspace() {
         </Card>
 
         <div className="min-w-0 space-y-6 xl:order-2">
+          <ReadinessSummary items={readinessItems} />
           <CanvasPreview
             settings={state.settings}
             brand={brand}

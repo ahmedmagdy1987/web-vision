@@ -11,6 +11,7 @@ import { Hero } from "@/components/home/hero";
 import { QuickStartCard } from "@/components/home/quick-start-card";
 import { MetricsRow } from "@/components/home/metrics-row";
 import { RecentMockups } from "@/components/home/recent-mockups";
+import { RecentActivity } from "@/components/home/recent-activity";
 import { ShortcutGrid } from "@/components/home/shortcut-grid";
 import { BrandSpotlight } from "@/components/home/brand-spotlight";
 
@@ -26,13 +27,16 @@ export default function HomePage() {
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <QuickStartCard brand={brand} />
-        {!ready ? (
-          <BrandSpotlightSkeleton />
-        ) : brand ? (
-          <BrandSpotlight brand={brand} />
-        ) : (
-          <NoBrandCard />
-        )}
+        <div className="space-y-6">
+          {!ready ? (
+            <BrandSpotlightSkeleton />
+          ) : brand ? (
+            <BrandSpotlight brand={brand} />
+          ) : (
+            <NoBrandCard />
+          )}
+          <RecentActivity ready={ready} />
+        </div>
       </div>
 
       <RecentMockups ready={ready} />

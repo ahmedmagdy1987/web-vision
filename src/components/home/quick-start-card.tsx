@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, MapPin, Wand2 } from "lucide-react";
-import type { AspectRatio, Brand, Location, VisualizationType } from "@/lib/domain";
+import type { AspectRatio, Brand, VisualizationType } from "@/lib/domain";
 import {
   ASPECT_RATIO_OPTIONS,
   DEFAULT_GENERATION_SETTINGS,
   VISUALIZATION_TYPE_OPTIONS,
 } from "@/lib/domain";
-import { useLocations } from "@/lib/hooks";
+import { useBrands, useLocations, useProducts } from "@/lib/hooks";
 import { studioPrefill } from "@/lib/store/studio-draft";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,30 +23,40 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-const NO_LOCATION = "__none__";
+const NONE = "__none__";
 
 interface QuickStartCardProps {
   brand: Brand | null;
 }
 
 export function QuickStartCard({ brand }: QuickStartCardProps) {
+  const brands = useBrands();
+  const products = useProducts();
   const locations = useLocations();
   const router = useRouter();
 
-  const [locationId, setLocationId] = useState<string>(NO_LOCATION);
+  const activeBrands = brands.filter((b) => b.status === "active");
+
+  const [brandId, setBrandId] = useState<string | null>(null);
+  const effectiveBrandId = brandId ?? brand?.id ?? activeBrands[0]?.id ?? null;
+
+  const brandProducts = products.filter((p) => p.brandId === effectiveBrandId && p.status === "active");
+  const [productId, setProductId] = useState<string>(NONE);
+  const effectiveProductId = brandProducts.some((p) => p.id === productId) ? productId : NONE;
+
+  const [locationId, setLocationId] = useState<string>(NONE);
+  const savedLocations = locations.filter((l) => l.saved);
+
   const [visualizationType, setVisualizationType] = useState<VisualizationType>(
     DEFAULT_GENERATION_SETTINGS.visualizationType,
   );
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(
-    DEFAULT_GENERATION_SETTINGS.aspectRatio,
-  );
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(DEFAULT_GENERATION_SETTINGS.aspectRatio);
 
-  const savedLocations: Location[] = locations.filter((l) => l.saved);
-
-  function openInStudio() {
+  function continueInStudio() {
     studioPrefill.set({
-      brandId: brand?.id,
-      locationId: locationId === NO_LOCATION ? undefined : locationId,
+      brandId: effectiveBrandId ?? undefined,
+      productIds: effectiveProductId === NONE ? undefined : [effectiveProductId],
+      locationId: locationId === NONE ? undefined : locationId,
       settings: { visualizationType, aspectRatio },
       source: "home-quick-start",
     });
@@ -57,18 +67,56 @@ export function QuickStartCard({ brand }: QuickStartCardProps) {
     <Card className="overflow-hidden border-brand-border">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-md bg-brand-subtle text-brand">
+          <span className="bg-brand-subtle text-brand flex size-8 items-center justify-center rounded-md">
             <Wand2 className="size-4" />
           </span>
           <div>
-            <CardTitle className="text-base">Quick start</CardTitle>
-            <CardDescription>Pick a setup and jump straight into Studio.</CardDescription>
+            <CardTitle className="text-base">Quick create</CardTitle>
+            <CardDescription>Set the essentials and continue into Studio.</CardDescription>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
+          {/* Brand */}
+          <div className="space-y-1.5">
+            <Label htmlFor="qs-brand">Brand</Label>
+            <Select value={effectiveBrandId ?? undefined} onValueChange={setBrandId}>
+              <SelectTrigger id="qs-brand" aria-label="Brand">
+                <SelectValue placeholder="Choose a brand" />
+              </SelectTrigger>
+              <SelectContent>
+                {activeBrands.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    <span className="size-3 rounded-full" style={{ backgroundColor: b.accentColor }} />
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Product */}
+          <div className="space-y-1.5">
+            <Label htmlFor="qs-product">Product</Label>
+            <Select value={effectiveProductId} onValueChange={setProductId}>
+              <SelectTrigger id="qs-product" aria-label="Product">
+                <SelectValue placeholder="Choose a product" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>
+                  <span className="text-muted-foreground">Pick in Studio</span>
+                </SelectItem>
+                {brandProducts.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Location */}
           <div className="space-y-1.5">
             <Label htmlFor="qs-location">Location</Label>
@@ -77,8 +125,8 @@ export function QuickStartCard({ brand }: QuickStartCardProps) {
                 <SelectValue placeholder="Choose a location" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NO_LOCATION}>
-                  <span className="text-muted-foreground">No location (set in Studio)</span>
+                <SelectItem value={NONE}>
+                  <span className="text-muted-foreground">Pick in Studio</span>
                 </SelectItem>
                 {savedLocations.map((location) => (
                   <SelectItem key={location.id} value={location.id}>
@@ -93,10 +141,7 @@ export function QuickStartCard({ brand }: QuickStartCardProps) {
           {/* Visualization type */}
           <div className="space-y-1.5">
             <Label htmlFor="qs-viz">Visualization type</Label>
-            <Select
-              value={visualizationType}
-              onValueChange={(v) => setVisualizationType(v as VisualizationType)}
-            >
+            <Select value={visualizationType} onValueChange={(v) => setVisualizationType(v as VisualizationType)}>
               <SelectTrigger id="qs-viz" aria-label="Visualization type">
                 <SelectValue placeholder="Choose a type" />
               </SelectTrigger>
@@ -135,8 +180,8 @@ export function QuickStartCard({ brand }: QuickStartCardProps) {
           </ToggleGroup>
         </div>
 
-        <Button onClick={openInStudio} size="lg" className="w-full">
-          Open in Studio
+        <Button onClick={continueInStudio} size="lg" className="w-full">
+          Continue in Studio
           <ArrowRight className="size-4" />
         </Button>
       </CardContent>

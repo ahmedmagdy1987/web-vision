@@ -15,6 +15,14 @@ function isBrowser(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
+type StorageErrorHandler = (key: string, error: unknown) => void;
+let errorHandler: StorageErrorHandler | null = null;
+
+/** Register a handler invoked when a write fails (e.g. quota exceeded). */
+export function setStorageErrorHandler(handler: StorageErrorHandler | null): void {
+  errorHandler = handler;
+}
+
 export const storage = {
   get<T>(key: string): T | null {
     if (!isBrowser()) return null;
@@ -36,6 +44,7 @@ export const storage = {
       // Quota exceeded or serialization error — fail gracefully but surface it
       // so it is not entirely silent (e.g. localStorage quota for large uploads).
       console.warn(`[web-vision] Failed to persist "${key}" to localStorage`, error);
+      errorHandler?.(key, error);
       return false;
     }
   },

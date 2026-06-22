@@ -1,4 +1,22 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Web Vision — Malahi visual-generation workspace (prototype)
+
+Internal tool for the Malahi team to mock up how games/attractions look in client
+locations. Built with Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn-style
+UI on `radix-ui`. See the Phase 2 review package in
+[`artifacts/web-vision-review/REVIEW.md`](artifacts/web-vision-review/REVIEW.md).
+
+> **Prototype storage limitation (read me):** all data — brands, products, locations,
+> generation jobs/results, and **uploaded images (stored inline as base64 data URLs)** —
+> is persisted in the browser's `localStorage`. There is **no backend, auth, or cloud
+> storage** in this phase. Uploads are capped at **8 MB each**; large/many uploads can
+> exceed the per-origin quota, in which case the write fails gracefully (no crash) and a
+> toast notifies the user. Result snapshots denormalize the location image, which adds to
+> storage use. This is intentional for the prototype and is resolved by moving to cloud
+> storage + a database in a later phase. Image generation is **mocked**
+> (`src/lib/services/image-adapter`); no real image API is called.
+
+Quality gates: `npm run typecheck`, `npm run lint`, `npm run build`. End-to-end tests &
+screenshots: `npm run build` then `npm run test:e2e` (requires `npx playwright install chromium`).
 
 ## Getting Started
 

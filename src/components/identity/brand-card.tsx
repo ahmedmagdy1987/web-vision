@@ -6,6 +6,7 @@ import type { Brand } from "@/lib/domain";
 import { brandLogoUrl } from "@/lib/brand-display";
 import { useProducts } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { AssetImage } from "@/components/common/asset-image";
@@ -14,9 +15,10 @@ import { EntityStatusBadge } from "@/components/common/status-badge";
 interface BrandCardProps {
   brand: Brand;
   onManage: (brand: Brand) => void;
+  isCurrent?: boolean;
 }
 
-export function BrandCard({ brand, onManage }: BrandCardProps) {
+export function BrandCard({ brand, onManage, isCurrent = false }: BrandCardProps) {
   const products = useProducts();
   const productCount = products.filter((p) => p.brandId === brand.id).length;
   const archived = brand.status === "archived";
@@ -40,6 +42,7 @@ export function BrandCard({ brand, onManage }: BrandCardProps) {
       className={cn(
         "group relative cursor-pointer gap-0 overflow-hidden p-0 transition-all outline-none",
         "hover:border-brand-border hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/50",
+        isCurrent && "border-brand ring-1 ring-brand/30",
         archived && "opacity-70",
       )}
     >
@@ -62,7 +65,10 @@ export function BrandCard({ brand, onManage }: BrandCardProps) {
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-start justify-between gap-2">
             <h3 className="truncate font-semibold leading-tight">{brand.name}</h3>
-            <EntityStatusBadge status={brand.status} />
+            <div className="flex shrink-0 items-center gap-1.5">
+              {isCurrent && <Badge variant="brand">Current</Badge>}
+              <EntityStatusBadge status={brand.status} />
+            </div>
           </div>
           <p className="text-muted-foreground line-clamp-2 min-h-[2.5rem] text-sm">
             {brand.description || "No description yet."}

@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+import { ChevronDown, SlidersHorizontal } from "lucide-react";
 import type { GenerationSettings } from "@/lib/domain";
 import {
   ASPECT_RATIO_OPTIONS,
@@ -22,6 +24,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { cn } from "@/lib/utils";
 import { ControlField, SegmentedControl, SettingSelect } from "./control-primitives";
 
 interface ControlsPanelProps {
@@ -60,6 +63,8 @@ function SwitchRow({
 const OUTPUT_OPTIONS = Array.from({ length: MAX_OUTPUT_COUNT - MIN_OUTPUT_COUNT + 1 }, (_, i) => MIN_OUTPUT_COUNT + i);
 
 export function ControlsPanel({ settings, onChange, notes, onNotesChange }: ControlsPanelProps) {
+  const [advancedOpen, setAdvancedOpen] = React.useState(false);
+
   return (
     <section aria-label="Generation controls" className="space-y-5">
       <div className="space-y-4">
@@ -72,14 +77,6 @@ export function ControlsPanel({ settings, onChange, notes, onNotesChange }: Cont
             options={VISUALIZATION_TYPE_OPTIONS}
           />
         </ControlField>
-        <div className="grid grid-cols-2 gap-3">
-          <ControlField label="Placement" htmlFor="ctl-place">
-            <SettingSelect id="ctl-place" value={settings.placement} onChange={(v) => onChange({ placement: v })} options={PLACEMENT_OPTIONS} />
-          </ControlField>
-          <ControlField label="Camera angle" htmlFor="ctl-cam">
-            <SettingSelect id="ctl-cam" value={settings.cameraAngle} onChange={(v) => onChange({ cameraAngle: v })} options={CAMERA_ANGLE_OPTIONS} />
-          </ControlField>
-        </div>
         <ControlField label="Environment" htmlFor="ctl-env">
           <SettingSelect id="ctl-env" value={settings.environmentType} onChange={(v) => onChange({ environmentType: v })} options={ENVIRONMENT_TYPE_OPTIONS} />
         </ControlField>
@@ -97,16 +94,6 @@ export function ControlsPanel({ settings, onChange, notes, onNotesChange }: Cont
             <SettingSelect id="ctl-light" value={settings.lighting} onChange={(v) => onChange({ lighting: v })} options={LIGHTING_OPTIONS} />
           </ControlField>
         </div>
-        <ControlField label="Creativity" valueLabel={`${creativityLabel(settings.creativity)} · ${settings.creativity}`}>
-          <Slider
-            value={[settings.creativity]}
-            min={0}
-            max={100}
-            step={5}
-            onValueChange={([v]) => onChange({ creativity: v })}
-            aria-label="Creativity level"
-          />
-        </ControlField>
       </div>
 
       <Separator />
@@ -120,51 +107,82 @@ export function ControlsPanel({ settings, onChange, notes, onNotesChange }: Cont
             options={ASPECT_RATIO_OPTIONS}
           />
         </ControlField>
-        <div className="grid grid-cols-2 gap-3">
-          <ControlField label="Outputs">
-            <ToggleGroup
-              type="single"
-              size="sm"
-              value={String(settings.outputCount)}
-              onValueChange={(v) => v && onChange({ outputCount: Number(v) })}
-              className="flex w-full"
-              aria-label="Output count"
-            >
-              {OUTPUT_OPTIONS.map((n) => (
-                <ToggleGroupItem key={n} value={String(n)} className="flex-1" aria-label={`${n} outputs`}>
-                  {n}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </ControlField>
-          <ControlField label="People in scene" htmlFor="ctl-people">
-            <SettingSelect id="ctl-people" value={settings.peopleInScene} onChange={(v) => onChange({ peopleInScene: v })} options={PEOPLE_IN_SCENE_OPTIONS} />
-          </ControlField>
-        </div>
-        <ControlField label="Product scale">
-          <SegmentedControl value={settings.productScale} onChange={(v) => onChange({ productScale: v })} options={PRODUCT_SCALE_OPTIONS} />
-        </ControlField>
-        <ControlField label="Brand visibility">
-          <SegmentedControl value={settings.brandVisibility} onChange={(v) => onChange({ brandVisibility: v })} options={BRAND_VISIBILITY_OPTIONS} />
+        <ControlField label="Outputs">
+          <ToggleGroup
+            type="single"
+            size="sm"
+            value={String(settings.outputCount)}
+            onValueChange={(v) => v && onChange({ outputCount: Number(v) })}
+            className="flex w-full"
+            aria-label="Output count"
+          >
+            {OUTPUT_OPTIONS.map((n) => (
+              <ToggleGroupItem key={n} value={String(n)} className="flex-1" aria-label={`${n} outputs`}>
+                {n}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         </ControlField>
       </div>
 
       <Separator />
 
-      <div className="space-y-3">
-        <GroupTitle>Scene rules</GroupTitle>
-        <SwitchRow
-          label="Preserve architecture"
-          description="Keep the location's structure intact"
-          checked={settings.preserveArchitecture}
-          onChange={(v) => onChange({ preserveArchitecture: v })}
-        />
-        <SwitchRow
-          label="Remove existing objects"
-          description="Clear clutter from the scene"
-          checked={settings.removeExistingObjects}
-          onChange={(v) => onChange({ removeExistingObjects: v })}
-        />
+      {/* Advanced — progressive disclosure for less-common controls. */}
+      <div className="space-y-4">
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          aria-expanded={advancedOpen}
+          className="flex w-full items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          <SlidersHorizontal className="text-muted-foreground size-4" />
+          <GroupTitle>Advanced options</GroupTitle>
+          <ChevronDown className={cn("text-muted-foreground ml-auto size-4 transition-transform", advancedOpen && "rotate-180")} />
+        </button>
+
+        {advancedOpen && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <ControlField label="Placement" htmlFor="ctl-place">
+                <SettingSelect id="ctl-place" value={settings.placement} onChange={(v) => onChange({ placement: v })} options={PLACEMENT_OPTIONS} />
+              </ControlField>
+              <ControlField label="Camera angle" htmlFor="ctl-cam">
+                <SettingSelect id="ctl-cam" value={settings.cameraAngle} onChange={(v) => onChange({ cameraAngle: v })} options={CAMERA_ANGLE_OPTIONS} />
+              </ControlField>
+            </div>
+            <ControlField label="People in scene" htmlFor="ctl-people">
+              <SettingSelect id="ctl-people" value={settings.peopleInScene} onChange={(v) => onChange({ peopleInScene: v })} options={PEOPLE_IN_SCENE_OPTIONS} />
+            </ControlField>
+            <ControlField label="Product scale">
+              <SegmentedControl value={settings.productScale} onChange={(v) => onChange({ productScale: v })} options={PRODUCT_SCALE_OPTIONS} />
+            </ControlField>
+            <ControlField label="Brand visibility">
+              <SegmentedControl value={settings.brandVisibility} onChange={(v) => onChange({ brandVisibility: v })} options={BRAND_VISIBILITY_OPTIONS} />
+            </ControlField>
+            <ControlField label="Creativity" valueLabel={`${creativityLabel(settings.creativity)} · ${settings.creativity}`}>
+              <Slider
+                value={[settings.creativity]}
+                min={0}
+                max={100}
+                step={5}
+                onValueChange={([v]) => onChange({ creativity: v })}
+                aria-label="Creativity level"
+              />
+            </ControlField>
+            <SwitchRow
+              label="Preserve architecture"
+              description="Keep the location's structure intact"
+              checked={settings.preserveArchitecture}
+              onChange={(v) => onChange({ preserveArchitecture: v })}
+            />
+            <SwitchRow
+              label="Remove existing objects"
+              description="Clear clutter from the scene"
+              checked={settings.removeExistingObjects}
+              onChange={(v) => onChange({ removeExistingObjects: v })}
+            />
+          </div>
+        )}
       </div>
 
       <Separator />
@@ -175,7 +193,7 @@ export function ControlsPanel({ settings, onChange, notes, onNotesChange }: Cont
           id="ctl-notes"
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}
-          placeholder="Any extra direction for this generation…"
+          placeholder="Any extra direction for this generation… (tip: include #fail to preview the error state)"
           className="min-h-20"
         />
       </div>

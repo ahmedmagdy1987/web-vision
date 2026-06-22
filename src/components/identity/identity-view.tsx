@@ -4,7 +4,7 @@ import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { Palette, Plus } from "lucide-react";
 import type { Brand } from "@/lib/domain";
-import { useBrands, useMounted } from "@/lib/hooks";
+import { useAppState, useBrands, useMounted } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,6 +47,7 @@ function NewBrandParam({ onRequestNew }: { onRequestNew: () => void }) {
 export function IdentityView() {
   const brands = useBrands();
   const mounted = useMounted();
+  const { selectedBrandId } = useAppState();
 
   const [search, setSearch] = React.useState("");
   const [filter, setFilter] = React.useState<StatusFilter>("active");
@@ -168,7 +169,12 @@ export function IdentityView() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((brand) => (
-            <BrandCard key={brand.id} brand={brand} onManage={openManage} />
+            <BrandCard
+              key={brand.id}
+              brand={brand}
+              onManage={openManage}
+              isCurrent={brand.id === selectedBrandId}
+            />
           ))}
         </div>
       )}
