@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Loader2, Palette, RotateCcw, Sparkles, TriangleAlert } from "lucide-react";
 import type { ComposeInput } from "@/lib/services/instruction-composer";
 import type { Location, ResultSnapshot, UploadedAssetRef } from "@/lib/domain";
-import { appStore, useBrands, useLocations, useProducts } from "@/lib/hooks";
+import { appStore, useBrands, useIsMobile, useLocations, useProducts } from "@/lib/hooks";
 import { useActiveBrand } from "@/lib/hooks";
 import { locationRepository } from "@/lib/repositories";
 import { buildGenerationRequest, composeInstructions } from "@/lib/services/instruction-composer";
@@ -25,6 +25,7 @@ import { CanvasPreview } from "./canvas-preview";
 import { ControlsPanel } from "./controls-panel";
 import { InstructionsPreview } from "./instructions-preview";
 import { ReadinessSummary, type ReadinessItem } from "./readiness-summary";
+import { StudioMobile } from "./studio-mobile";
 import { createInitialState, studioReducer } from "./studio-state";
 
 // Module-scoped one-shot guard so the prefill handoff is consumed exactly once
@@ -41,6 +42,7 @@ export function StudioWorkspace() {
   const brands = useBrands();
   const products = useProducts();
   const locations = useLocations();
+  const isMobile = useIsMobile();
   const { brand: fallbackBrand } = useActiveBrand();
 
   const [prefill] = React.useState(takePrefillOnce);
@@ -229,6 +231,21 @@ export function StudioWorkspace() {
     }
   };
 
+  // Shared selection handlers (used by both desktop and mobile layouts).
+  const onBrandChange = (id: string) => {
+    dispatch({ type: "set-brand", brandId: id });
+    appStore.setSelectedBrand(id);
+  };
+  const onLogoChange = (id: string) => dispatch({ type: "set-logo", logoId: id });
+  const onToggleProduct = (id: string) => dispatch({ type: "toggle-product", productId: id });
+  const onSetLocationMode = (mode: "existing" | "new") => dispatch({ type: "set-location-mode", mode });
+  const onSelectLocation = (id: string) => dispatch({ type: "set-location", locationId: id });
+  const onSetMainImage = (id: string) => dispatch({ type: "set-main-location-image", imageId: id });
+  const onUpdateNewLocation = (patch: Partial<typeof state.newLocation>) =>
+    dispatch({ type: "update-new-location", patch });
+  const onSettingsChange = (patch: Partial<typeof state.settings>) => dispatch({ type: "set-settings", patch });
+  const onNotesChange = (notes: string) => dispatch({ type: "set-notes", notes });
+
   if (!brand) {
     return (
       <div className="space-y-6">
@@ -242,6 +259,53 @@ export function StudioWorkspace() {
               <Link href="/identity?new=1">Create a brand</Link>
             </Button>
           }
+        />
+      </div>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <div className="space-y-4">
+        <PageHeader
+          title="Studio"
+          description="Compose a brief and generate realistic client mockups."
+          actions={
+            <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "reset" })} disabled={generating}>
+              <RotateCcw />
+              Reset
+            </Button>
+          }
+        />
+        <StudioMobile
+          brands={brands}
+          brandLogos={brandLogos}
+          brandProducts={brandProducts}
+          locations={savedLocations}
+          brand={brand}
+          logo={logo}
+          selectedProducts={selectedProducts}
+          selectedProductIds={selectedProductIds}
+          state={state}
+          mainLocationImageUrl={mainLocationImageUrl}
+          composeLocationName={composeLocation?.name ?? null}
+          instructions={instructions}
+          readinessItems={readinessItems}
+          issues={issues}
+          locationReady={locationReady}
+          canGenerate={canGenerate}
+          generating={generating}
+          job={job}
+          onBrandChange={onBrandChange}
+          onLogoChange={onLogoChange}
+          onToggleProduct={onToggleProduct}
+          onSetLocationMode={onSetLocationMode}
+          onSelectLocation={onSelectLocation}
+          onSetMainImage={onSetMainImage}
+          onUpdateNewLocation={onUpdateNewLocation}
+          onSettingsChange={onSettingsChange}
+          onNotesChange={onNotesChange}
+          onGenerate={handleGenerate}
         />
       </div>
     );
@@ -275,16 +339,13 @@ export function StudioWorkspace() {
               locationId={state.locationId}
               mainLocationImageId={state.mainLocationImageId}
               newLocation={state.newLocation}
-              onBrandChange={(id) => {
-                dispatch({ type: "set-brand", brandId: id });
-                appStore.setSelectedBrand(id);
-              }}
-              onLogoChange={(id) => dispatch({ type: "set-logo", logoId: id })}
-              onToggleProduct={(id) => dispatch({ type: "toggle-product", productId: id })}
-              onSetLocationMode={(mode) => dispatch({ type: "set-location-mode", mode })}
-              onSelectLocation={(id) => dispatch({ type: "set-location", locationId: id })}
-              onSetMainImage={(id) => dispatch({ type: "set-main-location-image", imageId: id })}
-              onUpdateNewLocation={(patch) => dispatch({ type: "update-new-location", patch })}
+              onBrandChange={onBrandChange}
+              onLogoChange={onLogoChange}
+              onToggleProduct={onToggleProduct}
+              onSetLocationMode={onSetLocationMode}
+              onSelectLocation={onSelectLocation}
+              onSetMainImage={onSetMainImage}
+              onUpdateNewLocation={onUpdateNewLocation}
             />
           </CardContent>
         </Card>
@@ -307,15 +368,15 @@ export function StudioWorkspace() {
           <CardContent className="pt-6">
             <ControlsPanel
               settings={state.settings}
-              onChange={(patch) => dispatch({ type: "set-settings", patch })}
+              onChange={onSettingsChange}
               notes={state.notes}
-              onNotesChange={(notes) => dispatch({ type: "set-notes", notes })}
+              onNotesChange={onNotesChange}
             />
           </CardContent>
         </Card>
       </div>
 
-      <div className="sticky bottom-20 z-20 md:bottom-4">
+      <div className="sticky bottom-4 z-20">
         <div className="bg-background/95 flex flex-col gap-3 rounded-xl border p-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 text-sm">
             {issues.length === 0 ? (

@@ -11,8 +11,13 @@ import type {
   ResultReview,
   ResultSnapshot,
 } from "@/lib/domain";
-import { DEFAULT_GENERATION_SETTINGS } from "@/lib/domain";
-import { brandMarkDataUrl, scenePlaceholderDataUrl, type LogoVariant } from "@/lib/placeholders";
+import { DEFAULT_GENERATION_SETTINGS, dimensionsForAspect } from "@/lib/domain";
+import {
+  brandMarkDataUrl,
+  productPlaceholderDataUrl,
+  scenePlaceholderDataUrl,
+  type LogoVariant,
+} from "@/lib/placeholders";
 import { composeInstructions } from "@/lib/services/instruction-composer";
 
 /*
@@ -304,27 +309,27 @@ function buildProducts(): Product[] {
     usage: s.usage,
     mainImage: asset(
       `prodimg_${s.id}_main`,
-      scenePlaceholderDataUrl({ label: s.name, sublabel: s.category, accent: s.accent, width: 1000, height: 1000, seed: s.id.length }),
+      productPlaceholderDataUrl({ name: s.name, category: s.category, accent: s.accent, width: 1200, height: 900 }),
       `${s.name} main`,
-      1000,
-      1000,
+      1200,
+      900,
       s.createdAt,
     ),
     referenceImages: [
       asset(
         `prodimg_${s.id}_ref1`,
-        scenePlaceholderDataUrl({ label: "Detail", sublabel: s.name, accent: s.accent, width: 1000, height: 1000, seed: s.id.length + 3 }),
+        productPlaceholderDataUrl({ name: `${s.name} — detail`, category: s.category, accent: s.accent, width: 1200, height: 900 }),
         `${s.name} detail`,
-        1000,
-        1000,
+        1200,
+        900,
         s.createdAt,
       ),
       asset(
         `prodimg_${s.id}_ref2`,
-        scenePlaceholderDataUrl({ label: "Angle", sublabel: s.name, accent: s.accent, width: 1000, height: 1000, seed: s.id.length + 9 }),
+        productPlaceholderDataUrl({ name: `${s.name} — angle`, category: s.category, accent: s.accent, width: 1200, height: 900 }),
         `${s.name} angle`,
-        1000,
-        1000,
+        1200,
+        900,
         s.createdAt,
       ),
     ],
@@ -567,8 +572,8 @@ const RESULT_SEEDS: ResultSeed[] = [
     brandId: "brand_arcade",
     productIds: ["prod_hyperdrive"],
     locationId: "loc_retail_unit",
-    settings: { visualizationType: "storefront-mockup", aspectRatio: "16:9", visualStyle: "minimal", lighting: "cool-daylight" },
-    notes: "Window concept for the downtown unit.",
+    settings: { visualizationType: "storefront-mockup", aspectRatio: "9:16", visualStyle: "minimal", lighting: "cool-daylight" },
+    notes: "Portrait window concept for the downtown unit.",
     review: "draft",
     favorite: false,
     createdAt: T(1),
@@ -611,19 +616,22 @@ function buildResults(
 
     const jobId = `job_${seed.key}`;
     const resultId = `res_${seed.key}`;
+    // Dimensions are derived from the requested aspect ratio so result metadata
+    // is always internally consistent with its settings.
+    const { width: imgW, height: imgH } = dimensionsForAspect(snapshot.settings.aspectRatio);
     const image = asset(
       `resimg_${seed.key}`,
       scenePlaceholderDataUrl({
         label: snapshot.brandName,
         sublabel: snapshot.locationName ?? "Generated mockup",
         accent: snapshot.brandAccent,
-        width: 1400,
-        height: 1400,
+        width: imgW,
+        height: imgH,
         seed: seed.key.length * 5,
       }),
       `${snapshot.brandName} mockup`,
-      1400,
-      1400,
+      imgW,
+      imgH,
       seed.createdAt,
     );
 

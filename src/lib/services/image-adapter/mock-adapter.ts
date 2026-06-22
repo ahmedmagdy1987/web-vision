@@ -1,5 +1,4 @@
-import type { AspectRatio } from "@/lib/domain";
-import { ASPECT_RATIO_VALUES } from "@/lib/domain";
+import { dimensionsForAspect } from "@/lib/domain";
 import { scenePlaceholderDataUrl } from "@/lib/placeholders";
 import type {
   GeneratedImage,
@@ -7,14 +6,6 @@ import type {
   ImageGenerationParams,
   ImageGenerationResponse,
 } from "./types";
-
-function dimensionsFor(ratio: AspectRatio): { width: number; height: number } {
-  const r = ASPECT_RATIO_VALUES[ratio];
-  const base = 1280;
-  return r >= 1
-    ? { width: base, height: Math.round(base / r) }
-    : { width: Math.round(base * r), height: base };
-}
 
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -77,7 +68,7 @@ export class MockImageAdapter implements ImageGenerationAdapter {
       throw new Error("The generation provider failed to process this request. Please try again.");
     }
 
-    const { width, height } = dimensionsFor(params.aspectRatio);
+    const { width, height } = dimensionsForAspect(params.aspectRatio);
     const seedBase = params.seedHint ?? Math.floor(Math.random() * 100000);
     const images: GeneratedImage[] = Array.from({ length: params.count }, (_, i) => {
       const seed = seedBase + i * 17;

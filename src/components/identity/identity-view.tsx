@@ -4,7 +4,7 @@ import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { Palette, Plus } from "lucide-react";
 import type { Brand } from "@/lib/domain";
-import { useAppState, useBrands, useMounted } from "@/lib/hooks";
+import { useActiveBrand, useAppState, useBrands, useLocations, useMounted, useProducts } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +14,7 @@ import { SearchInput } from "@/components/common/search-input";
 import { BrandCard } from "./brand-card";
 import { BrandFormDialog } from "./brand-form-dialog";
 import { BrandManagerSheet } from "./brand-manager-sheet";
+import { IdentitySummary } from "./identity-summary";
 
 type StatusFilter = "active" | "archived" | "all";
 
@@ -46,8 +47,11 @@ function NewBrandParam({ onRequestNew }: { onRequestNew: () => void }) {
 
 export function IdentityView() {
   const brands = useBrands();
+  const products = useProducts();
+  const locations = useLocations();
   const mounted = useMounted();
   const { selectedBrandId } = useAppState();
+  const { brand: currentBrand } = useActiveBrand();
 
   const [search, setSearch] = React.useState("");
   const [filter, setFilter] = React.useState<StatusFilter>("active");
@@ -173,10 +177,20 @@ export function IdentityView() {
               key={brand.id}
               brand={brand}
               onManage={openManage}
-              isCurrent={brand.id === selectedBrandId}
+              isCurrent={brand.id === (selectedBrandId ?? currentBrand?.id)}
             />
           ))}
         </div>
+      )}
+
+      {mounted && currentBrand && brands.length > 0 && (
+        <IdentitySummary
+          brand={currentBrand}
+          productCount={products.filter((p) => p.brandId === currentBrand.id).length}
+          locationCount={locations.filter((l) => l.brandId === currentBrand.id).length}
+          onEdit={openEdit}
+          onManage={openManage}
+        />
       )}
 
       <BrandFormDialog

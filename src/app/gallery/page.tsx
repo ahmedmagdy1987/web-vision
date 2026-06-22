@@ -23,6 +23,7 @@ import {
   type GalleryView,
 } from "@/components/gallery/gallery-collection";
 import { GalleryFilters } from "@/components/gallery/gallery-filters";
+import { GalleryMobileFilters } from "@/components/gallery/gallery-mobile-filters";
 import {
   DEFAULT_FILTERS,
   applyGalleryFilters,
@@ -84,13 +85,24 @@ export default function GalleryPage() {
           aria-label="Search results"
         />
 
-        <GalleryFilters
-          brands={brands}
-          products={products}
-          locations={locations}
-          filters={filters}
-          onChange={setFilters}
-        />
+        <div className="hidden md:block">
+          <GalleryFilters
+            brands={brands}
+            products={products}
+            locations={locations}
+            filters={filters}
+            onChange={setFilters}
+          />
+        </div>
+        <div className="md:hidden">
+          <GalleryMobileFilters
+            brands={brands}
+            products={products}
+            locations={locations}
+            filters={filters}
+            onChange={setFilters}
+          />
+        </div>
       </div>
 
       {!mounted ? (

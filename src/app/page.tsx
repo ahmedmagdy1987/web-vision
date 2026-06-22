@@ -20,12 +20,17 @@ export default function HomePage() {
   const ready = useMounted();
 
   return (
-    <div className="space-y-8">
-      <Hero brand={brand} ready={ready} />
+    <div className="flex flex-col gap-8">
+      <div className="order-1">
+        <Hero brand={brand} ready={ready} />
+      </div>
 
-      <MetricsRow ready={ready} />
+      {/* On mobile, Quick Create comes before metrics; desktop keeps metrics first. */}
+      <div className="order-3 lg:order-2">
+        <MetricsRow ready={ready} />
+      </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+      <div className="order-2 grid gap-6 lg:order-3 lg:grid-cols-[1.6fr_1fr]">
         <QuickStartCard brand={brand} />
         <div className="space-y-6">
           {!ready ? (
@@ -39,9 +44,13 @@ export default function HomePage() {
         </div>
       </div>
 
-      <RecentMockups ready={ready} />
+      <div className="order-4">
+        <RecentMockups ready={ready} />
+      </div>
 
-      <ShortcutGrid />
+      <div className="order-5">
+        <ShortcutGrid />
+      </div>
     </div>
   );
 }

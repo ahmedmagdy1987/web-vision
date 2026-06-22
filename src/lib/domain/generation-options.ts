@@ -125,6 +125,15 @@ export const ASPECT_RATIO_VALUES: Record<AspectRatio, number> = {
   "16:9": 16 / 9,
 };
 
+/** Pixel dimensions for an aspect ratio, longest side = `base`. Shared by the
+ * mock adapter and the seed so result metadata always matches the ratio. */
+export function dimensionsForAspect(ratio: AspectRatio, base = 1280): { width: number; height: number } {
+  const r = ASPECT_RATIO_VALUES[ratio];
+  return r >= 1
+    ? { width: base, height: Math.round(base / r) }
+    : { width: Math.round(base * r), height: base };
+}
+
 export const MIN_OUTPUT_COUNT = 1;
 export const MAX_OUTPUT_COUNT = 4;
 

@@ -18,7 +18,7 @@ export function Hero({ brand, ready }: HeroProps) {
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-2xl border bg-card p-6 shadow-sm sm:p-8",
+        "relative overflow-hidden rounded-2xl border bg-card p-5 shadow-sm sm:p-8",
         "bg-gradient-to-br from-brand-subtle via-card to-card",
       )}
     >
@@ -37,7 +37,7 @@ export function Hero({ brand, ready }: HeroProps) {
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Turn your brand into on-location visuals.
           </h1>
-          <p className="text-muted-foreground text-sm sm:text-base">
+          <p className="text-muted-foreground line-clamp-2 text-sm sm:line-clamp-none sm:text-base">
             Compose photoreal product placements, storefront mockups and lifestyle scenes from your
             brand identity, products and locations — in a few clicks.
           </p>

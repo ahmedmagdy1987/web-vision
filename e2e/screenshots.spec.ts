@@ -31,7 +31,7 @@ async function openStudioWithSetup(page: Page) {
     { k: STUDIO_PREFILL_KEY, v: JSON.stringify(COMPLETE_SETUP) },
   );
   await page.goto("/studio");
-  await expect(page.getByRole("button", { name: "Generate", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Studio" })).toBeVisible();
   await settle(page);
 }
 
