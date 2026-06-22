@@ -4,7 +4,7 @@ import { productAssetPath } from "@/lib/storage/paths";
 import { createSignedUrls, dataUrlToBlob, removeObjects, uploadObject } from "@/lib/storage/storage-service";
 import type { ProductAssetRow, ProductCategoryRow, ProductRow } from "@/lib/supabase/database.types";
 import { SupabaseCollection } from "./collection";
-import { db, getActiveUserId, requireActiveOrgId } from "./context";
+import { db, getActiveOrgId, getActiveUserId, requireActiveOrgId } from "./context";
 import { productFromRow, slugify, type SignUrl } from "./mappers";
 import type { ProductInput, ProductRepositoryApi } from "../types";
 
@@ -30,7 +30,8 @@ export class SupabaseProductRepository extends SupabaseCollection<Product> imple
   }
 
   protected async fetchAll(): Promise<Product[]> {
-    const orgId = requireActiveOrgId();
+    const orgId = getActiveOrgId();
+    if (!orgId) return [];
     const supabase = db();
     const [{ data: products, error }, { data: categories, error: catErr }] = await Promise.all([
       supabase.from("products").select("*").eq("organization_id", orgId).order("created_at", { ascending: true }),

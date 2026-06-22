@@ -35,6 +35,10 @@ export interface AuthValue {
   signOut: () => Promise<void>;
   selectOrg: (orgId: string) => void;
   createOrganization: (name: string) => Promise<{ error?: string }>;
+  /** Set the password for the current (invite/recovery) session. */
+  updatePassword: (newPassword: string) => Promise<{ error?: string }>;
+  /** Send a password setup/recovery email with the onboarding redirect. */
+  sendPasswordReset: (email: string) => Promise<{ error?: string }>;
 }
 
 const ACTIVE_ORG_KEY = "auth:activeOrgId";
@@ -134,6 +138,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {};
       } catch (e) {
         return { error: e instanceof Error ? e.message : "Could not create organization." };
+      }
+    },
+    updatePassword: async (newPassword) => {
+      try {
+        const { error } = await getBrowserSupabase().auth.updateUser({ password: newPassword });
+        return error ? { error: error.message } : {};
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : "Could not update password." };
+      }
+    },
+    sendPasswordReset: async (email) => {
+      try {
+        const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent("/auth/set-password")}`;
+        const { error } = await getBrowserSupabase().auth.resetPasswordForEmail(email, { redirectTo });
+        return error ? { error: error.message } : {};
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : "Could not send the email." };
       }
     },
   };

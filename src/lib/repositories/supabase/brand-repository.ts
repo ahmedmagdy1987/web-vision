@@ -4,7 +4,7 @@ import { brandAssetPath } from "@/lib/storage/paths";
 import { createSignedUrls, dataUrlToBlob, removeObjects, uploadObject } from "@/lib/storage/storage-service";
 import type { BrandAssetRow, BrandRow } from "@/lib/supabase/database.types";
 import { SupabaseCollection } from "./collection";
-import { db, getActiveUserId, requireActiveOrgId } from "./context";
+import { db, getActiveOrgId, getActiveUserId, requireActiveOrgId } from "./context";
 import { brandFromRow, slugify, type SignUrl } from "./mappers";
 import type { BrandRepositoryApi, CreateBrandInput, CreateLogoInput } from "../types";
 
@@ -14,7 +14,8 @@ export class SupabaseBrandRepository extends SupabaseCollection<Brand> implement
   }
 
   protected async fetchAll(): Promise<Brand[]> {
-    const orgId = requireActiveOrgId();
+    const orgId = getActiveOrgId();
+    if (!orgId) return [];
     const supabase = db();
     const { data: brands, error } = await supabase
       .from("brands")

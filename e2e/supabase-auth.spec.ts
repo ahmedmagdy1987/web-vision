@@ -34,7 +34,7 @@ test.describe("Supabase auth", () => {
     test("sign in lands on the app, protected nav works, then sign out", async ({ page }) => {
       await page.goto("/sign-in");
       await page.getByLabel("Email").fill(EMAIL);
-      await page.getByLabel("Password").fill(PASSWORD);
+      await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
       await page.getByRole("button", { name: "Sign in" }).click();
 
       // Lands on the application shell.

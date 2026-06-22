@@ -25,7 +25,7 @@ test.describe("Supabase smoke", () => {
   async function signIn(page: Page) {
     await page.goto("/sign-in");
     await page.getByLabel("Email").fill(EMAIL);
-    await page.getByLabel("Password").fill(PASSWORD);
+    await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect.poll(() => new URL(page.url()).pathname).toBe("/");
   }

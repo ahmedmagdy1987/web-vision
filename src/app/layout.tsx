@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/layout/providers";
@@ -15,8 +15,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Web Vision · Malahi",
+  title: {
+    default: "Web Vision · Malahi",
+    template: "%s — Web Vision",
+  },
   description: "Internal visual-generation workspace for creating realistic client mockups.",
+  applicationName: "Web Vision",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#6d28d9",
 };
 
 export default function RootLayout({

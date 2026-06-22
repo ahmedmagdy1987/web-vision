@@ -42,6 +42,16 @@ selects its backend at runtime:
 > [`artifacts/web-vision-phase-3/REVIEW.md`](artifacts/web-vision-phase-3/REVIEW.md)
 > for the original foundation review.
 
+> **Phase 3.2A — invitation onboarding & auth branding:** the invited-user
+> lifecycle is now complete — an invitation/recovery link leads to a dedicated
+> **Create-your-password** screen, expired/invalid links show a branded recovery
+> state (not the bare sign-in form), and **Forgot password** is supported. The
+> sign-in screen, favicon, app icons, and page titles were refined to the Web
+> Vision brand. See
+> [`artifacts/web-vision-phase-3-2a/REVIEW.md`](artifacts/web-vision-phase-3-2a/REVIEW.md)
+> and [`docs/SUPABASE.md`](docs/SUPABASE.md) §6 (incl. the required Redirect-URL
+> allow-list).
+
 Additional quality gate: `npm run test:unit` (Vitest unit tests). Live Supabase
 verification (requires `.env.local` configured for the project):
 `npx playwright test e2e/supabase-auth.spec.ts e2e/supabase-persistence.spec.ts e2e/supabase-smoke.spec.ts --workers=1`.

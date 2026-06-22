@@ -14,7 +14,9 @@ import { getDataBackend } from "@/lib/config/backend";
 import type { Database } from "./database.types";
 import { getPublicSupabaseEnv } from "./env";
 
-const PUBLIC_PREFIXES = ["/sign-in", "/auth", "/forgot-password", "/reset-password"];
+// Public auth surface: the sign-in page and the whole /auth/* onboarding flow
+// (callback, set-password, forgot-password, invite-expired).
+const PUBLIC_PREFIXES = ["/sign-in", "/auth"];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`) || pathname.startsWith(`${p}?`));

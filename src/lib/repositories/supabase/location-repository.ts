@@ -4,7 +4,7 @@ import { locationAssetPath } from "@/lib/storage/paths";
 import { createSignedUrls, dataUrlToBlob, removeObjects, uploadObject } from "@/lib/storage/storage-service";
 import type { LocationAssetRow, LocationRow } from "@/lib/supabase/database.types";
 import { SupabaseCollection } from "./collection";
-import { db, getActiveUserId, requireActiveOrgId } from "./context";
+import { db, getActiveOrgId, getActiveUserId, requireActiveOrgId } from "./context";
 import { locationFromRow, type SignUrl } from "./mappers";
 import type { LocationInput, LocationRepositoryApi } from "../types";
 
@@ -14,7 +14,8 @@ export class SupabaseLocationRepository extends SupabaseCollection<Location> imp
   }
 
   protected async fetchAll(): Promise<Location[]> {
-    const orgId = requireActiveOrgId();
+    const orgId = getActiveOrgId();
+    if (!orgId) return [];
     const supabase = db();
     const { data: locations, error } = await supabase
       .from("locations")

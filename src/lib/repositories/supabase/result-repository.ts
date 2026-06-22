@@ -4,7 +4,7 @@ import { resultPath } from "@/lib/storage/paths";
 import { createSignedUrls, dataUrlToBlob, removeObjects, uploadObject } from "@/lib/storage/storage-service";
 import type { GenerationResultRow } from "@/lib/supabase/database.types";
 import { SupabaseCollection } from "./collection";
-import { db, requireActiveOrgId } from "./context";
+import { db, getActiveOrgId, requireActiveOrgId } from "./context";
 import { resultFromRow, type SignUrl } from "./mappers";
 import type { ResultRepositoryApi } from "../types";
 
@@ -14,7 +14,8 @@ export class SupabaseResultRepository extends SupabaseCollection<GenerationResul
   }
 
   protected async fetchAll(): Promise<GenerationResult[]> {
-    const orgId = requireActiveOrgId();
+    const orgId = getActiveOrgId();
+    if (!orgId) return [];
     const supabase = db();
     const { data, error } = await supabase
       .from("generation_results")

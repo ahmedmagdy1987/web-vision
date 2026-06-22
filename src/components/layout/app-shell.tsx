@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { OrgOnboarding } from "@/components/auth/org-onboarding";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
+import { DocumentTitle } from "./document-title";
 import { Header } from "./header";
 import { MobileNav } from "./mobile-nav";
 import { PageTransition } from "./page-transition";
@@ -38,6 +39,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-dvh w-full overflow-hidden">
+      <DocumentTitle />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />

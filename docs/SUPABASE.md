@@ -1,8 +1,9 @@
-# Web Vision — Supabase Foundation (Phase 3 / Phase 3.1)
+# Web Vision — Supabase Foundation (Phase 3 / 3.1 / 3.2A)
 
 This document describes the Supabase-backed authentication, database, and private
-cloud storage foundation (Phase 3) and its **live connection + runtime verification**
-(Phase 3.1).
+cloud storage foundation (Phase 3), its **live connection + runtime verification**
+(Phase 3.1), and the **invitation onboarding + auth-branding fixes** (Phase 3.2A,
+see §6 and §15 and [`../artifacts/web-vision-phase-3-2a/REVIEW.md`](../artifacts/web-vision-phase-3-2a/REVIEW.md)).
 
 > **Status (Phase 3.1 — live):** the Supabase backend is **connected to a real
 > dedicated project (`web-vision-malahi`) and runtime-verified.** Migrations are
@@ -128,13 +129,54 @@ carry binary objects and so are seeded at runtime by
 
 Auth is **email + password** via Supabase Auth, wired for the Next.js App Router:
 
-- `src/middleware.ts` → `updateSession()` refreshes the session cookie and
-  redirects unauthenticated users to `/sign-in` (no-op in demo mode).
-- `src/app/sign-in/page.tsx` — minimal internal sign-in page.
-- `src/app/auth/callback/route.ts` — exchanges the auth `code` for a session
-  (email confirmation / password reset / magic link).
-- `src/lib/auth/auth-context.tsx` — resolves the session, loads memberships, and
-  publishes the active org/user to the repository context.
+- `src/proxy.ts` (Next 16 proxy convention) → `updateSession()` refreshes the
+  session cookie and redirects unauthenticated users to `/sign-in` (no-op in demo
+  mode or when the backend is explicitly `local`). `/sign-in` and `/auth/*` are public.
+- `src/app/sign-in/page.tsx` — branded internal sign-in (show/hide password,
+  forgot-password link, expired-invite banner; no app-supplied default credentials).
+- `src/app/auth/callback/route.ts` — handles both the PKCE `code` flow **and** the
+  `token_hash` + `type` (verifyOtp) flow, and surfaces Supabase error redirects
+  (e.g. `otp_expired`, `access_denied`) as a recovery state. Invite/recovery
+  sessions are routed to `/auth/set-password`. The `next` parameter is
+  open-redirect-validated (`src/lib/auth/redirect.ts`).
+- `src/lib/auth/auth-context.tsx` — resolves the session, loads memberships,
+  publishes the active org/user to the repository context, and exposes
+  `updatePassword` / `sendPasswordReset`.
+
+### Invitation & password-recovery onboarding (Phase 3.2A)
+
+The invited-user lifecycle is now complete:
+
+1. **Invite** — `scripts/invite-user.mjs` (or the dashboard) sends an invite whose
+   redirect points at `/auth/callback?next=/auth/set-password` (env-aware base, see
+   the redirect allow-list below).
+2. **Callback** — the user opens the link; `/auth/callback` completes the session
+   (code or token_hash) and forwards invite/recovery users to **`/auth/set-password`**.
+3. **Create password** — `/auth/set-password` is a session-gated "Create your
+   password" screen (new + confirm, show/hide, min length, mismatch rejected) using
+   `supabase.auth.updateUser`; on success the user lands in the app. If the link had
+   no valid session it points the user to request a fresh one.
+4. **Expired / invalid / reused link** — `/auth/invite-expired` shows a deliberate
+   branded recovery state ("the link is no longer valid; no password was created")
+   with a "Request a new setup link" action — never the bare sign-in form.
+5. **Forgot password** — `/auth/forgot-password` calls `resetPasswordForEmail` with
+   the same `/auth/callback?next=/auth/set-password` redirect; the recovery callback
+   lands on the set-password screen. Messaging is generic (no account enumeration).
+
+### Redirect URL allow-list (required)
+
+The corrected flow depends on the Supabase project's **Authentication → URL
+Configuration**:
+
+- **Site URL:** the app base (e.g. `http://localhost:3000` for local).
+- **Redirect URLs** (allow-list) must include the callback for each environment:
+  - Local dev: `http://localhost:3000/auth/callback`
+  - E2E/test server (if running Playwright against it): `http://localhost:3210/auth/callback`
+  - Production: `<production-base>/auth/callback`
+
+The redirect base is derived from `NEXT_PUBLIC_SITE_URL` (server tooling) or the
+browser origin (client) — **do not hardcode localhost in production**. Unsafe or
+off-origin `next` targets are rejected to avoid open redirects.
 
 **Bootstrapping the first owner:**
 
@@ -260,12 +302,14 @@ service-role key server-side and never print secrets):
 | `scripts/seed-results.mjs` | Seed a completed demo generation job + 2 results with real placeholder objects in private Storage (idempotent; resets review/favorite state on re-run). |
 | `scripts/rls-matrix.mjs` | Verify the RLS / organization-isolation matrix via real per-role authenticated API sessions, then clean up the temporary identities/rows. |
 | `scripts/verify-asset-ops.mjs` | Verify private-Storage asset ops via the owner session: upload → signed URL resolves → replace primary → delete. |
+| `scripts/invite-user.mjs` | **Phase 3.2A:** send a real Supabase invite with the corrected `/auth/callback?next=/auth/set-password` redirect (env-aware base). Privileged; **not auto-run**; sends a real email — invoke deliberately. |
 
 ```bash
 node --env-file=.env.local scripts/bootstrap-owner.mjs
 node --env-file=.env.local scripts/seed-results.mjs
 node --env-file=.env.local scripts/rls-matrix.mjs
 node --env-file=.env.local scripts/verify-asset-ops.mjs
+node --env-file=.env.local scripts/invite-user.mjs someone@example.com   # deliberate; sends an email
 ```
 
 `tests/integration/rls.sql` additionally provides copy-pasteable psql RLS checks.
@@ -286,3 +330,25 @@ node --env-file=.env.local scripts/verify-asset-ops.mjs
 - **localStorage importer** — `src/lib/migration/local-import.ts` remains a typed,
   non-UI utility (no automatic import); wiring an owner-only import screen is
   deferred to avoid unnecessary risk.
+
+## 15. Phase 3.2A — invitation onboarding & auth branding
+
+Fixed the invited-user lifecycle and refined the authentication screens (no main
+app redesign). Highlights:
+
+- **Onboarding flow** — see §6: robust `/auth/callback`, `/auth/set-password`,
+  `/auth/invite-expired`, `/auth/forgot-password`. Invited/recovering users now get
+  a "Create your password" screen instead of the bare sign-in form; expired/invalid
+  links show a branded recovery state.
+- **Sign-in branding** — shared `AuthCard` with the Web Vision `Aperture` mark,
+  workspace description, show/hide password, forgot-password link, expired-invite
+  banner, correct `autocomplete` (`username` / `current-password` / `new-password`),
+  no app-supplied default credentials, no public sign-up.
+- **Browser metadata** — `src/app/icon.svg` (Aperture brand mark) replaces the
+  default Next favicon; generated apple touch icon (`src/app/apple-icon.tsx`),
+  `src/app/manifest.ts`, theme color `#6d28d9`, and a `"%s — Web Vision"` title
+  template (e.g. "Sign in — Web Vision", "Studio — Web Vision").
+- **Bug fix** — Supabase collections return `[]` when there is no active org, so
+  auth/onboarding pages no longer raise a spurious "couldn't load" error toast.
+- **Invite tooling** — `scripts/invite-user.mjs` sends invites with the corrected
+  redirect; add the callback URL to the project's Redirect URLs allow-list (§6).

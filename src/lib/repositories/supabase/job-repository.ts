@@ -2,7 +2,7 @@ import type { GenerationJob, ID, JobStatus } from "@/lib/domain";
 import { nowIso } from "@/lib/ids";
 import type { GenerationJobRow, JobStatusDb } from "@/lib/supabase/database.types";
 import { SupabaseCollection } from "./collection";
-import { db, getActiveUserId, requireActiveOrgId } from "./context";
+import { db, getActiveOrgId, getActiveUserId, requireActiveOrgId } from "./context";
 import { jobFromRow } from "./mappers";
 import type { JobRepositoryApi } from "../types";
 
@@ -16,7 +16,8 @@ export class SupabaseJobRepository extends SupabaseCollection<GenerationJob> imp
   }
 
   protected async fetchAll(): Promise<GenerationJob[]> {
-    const orgId = requireActiveOrgId();
+    const orgId = getActiveOrgId();
+    if (!orgId) return [];
     const supabase = db();
     const { data: jobs, error } = await supabase
       .from("generation_jobs")
