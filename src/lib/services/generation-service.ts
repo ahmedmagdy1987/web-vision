@@ -48,7 +48,7 @@ export async function startGeneration(input: StartGenerationInput): Promise<Gene
 
   const ts = nowIso();
   const queued: GenerationJob = {
-    id: newId("job"),
+    id: newId(),
     request,
     status: "queued",
     progress: 0,
@@ -81,7 +81,7 @@ export async function startGeneration(input: StartGenerationInput): Promise<Gene
     );
 
     const results: GenerationResult[] = response.images.map((image, index) => {
-      const resultId = newId("res");
+      const resultId = newId();
       return {
         id: resultId,
         jobId: queued.id,

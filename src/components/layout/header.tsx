@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AccountMenu } from "./account-menu";
 import { AppLogo } from "./app-logo";
 import { BrandSelector } from "./brand-selector";
 import { GlobalSearch } from "./global-search";
@@ -27,6 +28,7 @@ export function Header() {
             Studio
           </Link>
         </Button>
+        <AccountMenu />
       </div>
     </header>
   );

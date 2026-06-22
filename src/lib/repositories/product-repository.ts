@@ -1,22 +1,12 @@
-import type { ID, ImageAsset, Product, ProductDimensions, ProductUsage } from "@/lib/domain";
+import type { ID, Product } from "@/lib/domain";
 import { newId, nowIso } from "@/lib/ids";
 import { buildSeed } from "@/lib/seed/seed-data";
 import { ObservableCollection } from "./observable-store";
+import type { ProductInput, ProductRepositoryApi } from "./types";
 
-export interface ProductInput {
-  brandId: ID;
-  name: string;
-  category: string;
-  tags: string[];
-  description?: string;
-  dimensions?: ProductDimensions;
-  usage: ProductUsage;
-  mainImage?: ImageAsset;
-  referenceImages: ImageAsset[];
-  preservationInstructions?: string;
-}
+export type { ProductInput } from "./types";
 
-export class ProductRepository extends ObservableCollection<Product> {
+export class ProductRepository extends ObservableCollection<Product> implements ProductRepositoryApi {
   constructor() {
     super("products", () => buildSeed().products);
   }

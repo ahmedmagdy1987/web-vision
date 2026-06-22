@@ -1,0 +1,67 @@
+import "server-only";
+
+/**
+ * Session refresh + route protection for Next.js middleware.
+ *
+ * In demo mode (no Supabase env) this is a no-op so the localStorage backend
+ * keeps working without auth. When Supabase is configured it refreshes the auth
+ * cookie and redirects unauthenticated users to /sign-in (preserving the
+ * intended path via ?redirect=).
+ */
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+import type { Database } from "./database.types";
+import { getPublicSupabaseEnv } from "./env";
+
+const PUBLIC_PREFIXES = ["/sign-in", "/auth", "/forgot-password", "/reset-password"];
+
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`) || pathname.startsWith(`${p}?`));
+}
+
+export async function updateSession(request: NextRequest): Promise<NextResponse> {
+  const { url, anonKey } = getPublicSupabaseEnv();
+
+  // Demo mode: do not enforce auth.
+  if (!url || !anonKey) {
+    return NextResponse.next({ request });
+  }
+
+  let response = NextResponse.next({ request });
+
+  const supabase = createServerClient<Database>(url, anonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        for (const { name, value } of cookiesToSet) request.cookies.set(name, value);
+        response = NextResponse.next({ request });
+        for (const { name, value, options } of cookiesToSet) response.cookies.set(name, value, options);
+      },
+    },
+  });
+
+  // IMPORTANT: getUser() must be called to refresh the session cookie.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+  if (!user && !isPublicPath(pathname)) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/sign-in";
+    redirectUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // Already authenticated users shouldn't sit on the sign-in page.
+  if (user && pathname.startsWith("/sign-in")) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/";
+    redirectUrl.search = "";
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  return response;
+}

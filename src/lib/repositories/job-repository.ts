@@ -2,8 +2,9 @@ import type { GenerationJob, ID, JobStatus } from "@/lib/domain";
 import { nowIso } from "@/lib/ids";
 import { buildSeed } from "@/lib/seed/seed-data";
 import { ObservableCollection } from "./observable-store";
+import type { JobRepositoryApi } from "./types";
 
-export class JobRepository extends ObservableCollection<GenerationJob> {
+export class JobRepository extends ObservableCollection<GenerationJob> implements JobRepositoryApi {
   constructor() {
     super("jobs", () => buildSeed().jobs);
   }

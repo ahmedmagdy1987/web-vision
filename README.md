@@ -18,6 +18,28 @@ UI on `radix-ui`. See the Phase 2 review package in
 Quality gates: `npm run typecheck`, `npm run lint`, `npm run build`. End-to-end tests &
 screenshots: `npm run build` then `npm run test:e2e` (requires `npx playwright install chromium`).
 
+## Phase 3 — Supabase foundation (auth, database, private storage)
+
+Phase 3 adds a Supabase-backed foundation (authentication, Postgres + RLS, and
+private cloud Storage) **behind the existing repository/service boundaries** — the
+localStorage limitation above is resolved when Supabase is configured. The app
+selects its backend at runtime:
+
+- **Demo backend (default):** no Supabase env → localStorage (Phase 1/2 behaviour),
+  so `npm run dev` and the Playwright suite work out of the box.
+- **Supabase backend:** set `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  (copy `.env.example` → `.env.local`) to enable auth, Postgres, and private Storage.
+
+> **Status:** the Supabase backend is **code-complete and statically verified**
+> (typecheck, lint, build, unit tests) but **not yet runtime-verified** — it needs
+> Docker (`supabase start`) and/or a linked remote project. See
+> [`docs/SUPABASE.md`](docs/SUPABASE.md) for setup, the RLS/role model, storage
+> strategy, auth bootstrap, and the Phase 4 image-provider seam, and
+> [`artifacts/web-vision-phase-3/REVIEW.md`](artifacts/web-vision-phase-3/REVIEW.md)
+> for the phase review.
+
+Additional quality gate: `npm run test:unit` (Vitest unit tests).
+
 ## Getting Started
 
 First, run the development server:

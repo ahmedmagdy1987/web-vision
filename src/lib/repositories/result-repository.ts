@@ -2,8 +2,9 @@ import type { GenerationResult, ID, ResultReview } from "@/lib/domain";
 import { nowIso } from "@/lib/ids";
 import { buildSeed } from "@/lib/seed/seed-data";
 import { ObservableCollection } from "./observable-store";
+import type { ResultRepositoryApi } from "./types";
 
-export class ResultRepository extends ObservableCollection<GenerationResult> {
+export class ResultRepository extends ObservableCollection<GenerationResult> implements ResultRepositoryApi {
   constructor() {
     super("results", () => buildSeed().results);
   }

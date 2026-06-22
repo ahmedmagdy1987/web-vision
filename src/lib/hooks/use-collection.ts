@@ -6,14 +6,14 @@ import {
   brandRepository,
   jobRepository,
   locationRepository,
-  ObservableCollection,
   productRepository,
   resultRepository,
 } from "@/lib/repositories";
+import type { ReadableStore } from "@/lib/repositories/types";
 
-/** Subscribe a component to any observable collection. */
-export function useCollection<T extends { id: string }>(collection: ObservableCollection<T>): T[] {
-  return useSyncExternalStore(collection.subscribe, collection.getSnapshot, collection.getServerSnapshot);
+/** Subscribe a component to any observable collection (either backend). */
+export function useCollection<T extends { id: string }>(store: ReadableStore<T>): T[] {
+  return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
 }
 
 export function useBrands(): Brand[] {

@@ -1,20 +1,12 @@
-import type { ID, ImageAsset, Location, LocationUsage } from "@/lib/domain";
+import type { ID, Location } from "@/lib/domain";
 import { newId, nowIso } from "@/lib/ids";
 import { buildSeed } from "@/lib/seed/seed-data";
 import { ObservableCollection } from "./observable-store";
+import type { LocationInput, LocationRepositoryApi } from "./types";
 
-export interface LocationInput {
-  name: string;
-  brandId?: ID;
-  usage: LocationUsage;
-  images: ImageAsset[];
-  mainImageId?: ID;
-  description?: string;
-  preservationInstructions?: string;
-  saved?: boolean;
-}
+export type { LocationInput } from "./types";
 
-export class LocationRepository extends ObservableCollection<Location> {
+export class LocationRepository extends ObservableCollection<Location> implements LocationRepositoryApi {
   constructor() {
     super("locations", () => buildSeed().locations);
   }

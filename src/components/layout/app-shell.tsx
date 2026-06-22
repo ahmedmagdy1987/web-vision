@@ -1,15 +1,38 @@
 "use client";
 
-import * as React from "react";
 import { usePathname } from "next/navigation";
+import { OrgOnboarding } from "@/components/auth/org-onboarding";
+import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
 import { Header } from "./header";
 import { MobileNav } from "./mobile-nav";
 import { PageTransition } from "./page-transition";
 import { Sidebar } from "./sidebar";
 
+function FullScreen({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="bg-background text-muted-foreground flex min-h-dvh items-center justify-center text-sm">
+      {children}
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { mode, ready, user, activeOrg } = useAuth();
+
+  // Auth routes render outside the application shell.
+  if (pathname.startsWith("/sign-in") || pathname.startsWith("/auth")) {
+    return <>{children}</>;
+  }
+
+  // Protected shell (Supabase mode only; demo mode is always open).
+  if (mode === "supabase") {
+    if (!ready) return <FullScreen>Loading your workspace…</FullScreen>;
+    if (!user) return <FullScreen>Redirecting to sign in…</FullScreen>;
+    if (!activeOrg) return <OrgOnboarding />;
+  }
+
   // Studio is a workspace and gets more horizontal room than admin pages.
   const wide = pathname.startsWith("/studio");
 

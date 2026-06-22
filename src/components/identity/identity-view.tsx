@@ -4,6 +4,7 @@ import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { Palette, Plus } from "lucide-react";
 import type { Brand } from "@/lib/domain";
+import { useCan } from "@/lib/auth/auth-context";
 import { useActiveBrand, useAppState, useBrands, useLocations, useMounted, useProducts } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -99,6 +100,9 @@ export function IdentityView() {
     all: brands.length,
   };
 
+  // Permission-aware action (RLS also enforces this). Demo mode = always allowed.
+  const canManageBrands = useCan("brands:manage");
+
   return (
     <div className="space-y-6">
       <React.Suspense fallback={null}>
@@ -109,7 +113,7 @@ export function IdentityView() {
         title="Identity"
         description="Manage your brands, accents, and logo assets that power every generation."
         actions={
-          <Button onClick={openAdd}>
+          <Button onClick={openAdd} disabled={!canManageBrands}>
             <Plus />
             Add brand
           </Button>

@@ -1,22 +1,12 @@
-import type { Brand, ID, ImageAsset, LogoAsset, LogoKind, LogoStatus } from "@/lib/domain";
+import type { Brand, ID, ImageAsset, LogoAsset, LogoStatus } from "@/lib/domain";
 import { newId, nowIso } from "@/lib/ids";
 import { buildSeed } from "@/lib/seed/seed-data";
 import { ObservableCollection } from "./observable-store";
+import type { BrandRepositoryApi, CreateBrandInput, CreateLogoInput } from "./types";
 
-export interface CreateBrandInput {
-  name: string;
-  accentColor: string;
-  description?: string;
-  instructions?: string;
-}
+export type { CreateBrandInput, CreateLogoInput } from "./types";
 
-export interface CreateLogoInput {
-  asset: ImageAsset;
-  kind: LogoKind;
-  instructions?: string;
-}
-
-export class BrandRepository extends ObservableCollection<Brand> {
+export class BrandRepository extends ObservableCollection<Brand> implements BrandRepositoryApi {
   constructor() {
     super("brands", () => buildSeed().brands);
   }
