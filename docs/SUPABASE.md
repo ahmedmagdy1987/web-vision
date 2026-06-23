@@ -1,4 +1,4 @@
-# Web Vision — Supabase Foundation (Phase 3 / 3.1 / 3.2A)
+# Web Vision — Supabase Foundation (Phase 3 / 3.1 / 3.2A / 3.2)
 
 This document describes the Supabase-backed authentication, database, and private
 cloud storage foundation (Phase 3), its **live connection + runtime verification**
@@ -352,3 +352,33 @@ app redesign). Highlights:
   auth/onboarding pages no longer raise a spurious "couldn't load" error toast.
 - **Invite tooling** — `scripts/invite-user.mjs` sends invites with the corrected
   redirect; add the callback URL to the project's Redirect URLs allow-list (§6).
+
+## 16. Phase 3.2 — Projects & single-workspace model
+
+The product is organized around **Projects** under a single hidden Malahi tenant.
+See `docs/PRODUCT.md` for the product/access model.
+
+- **Migration `20260623130000_projects.sql`** (applied live; history matches): adds
+  `projects` (status enum active/draft/completed/archived) + many-to-many join
+  tables `project_brands`, `project_products`, `project_locations`, and a
+  `project_id` column on `generation_jobs` and `generation_results`, with indexes,
+  grants, and a non-destructive **data migration** that moves all pre-existing assets
+  into a default **"General"** project. Regenerate types after applying:
+  `supabase gen types typescript --linked > src/lib/supabase/database.types.ts`.
+- **RLS** for projects + join tables follows the existing membership/role model:
+  members read; **owner/admin/editor** write; viewers read-only. The Malahi org
+  stays a hidden boundary — there is **no** self-service organization creation
+  (the `create_organization` RPC is no longer used by the client).
+- **Real-owner reassignment & cleanup (done via service-role admin; no secrets):**
+  the real owner was made an active **owner** of the operational Malahi org; an
+  empty accidental org (from the old "create workspace" flow) was confirmed empty
+  and removed. Only the Malahi org remains. The **synthetic verification owner is
+  preserved**; the final handover + synthetic-account removal are deferred until the
+  owner confirms access (do not remove it before then; tests then move to temporary
+  users).
+- **Manifest fix:** the proxy no longer intercepts `/manifest.webmanifest` or the
+  icon/metadata routes, so the manifest serves as `application/manifest+json` (200).
+- **Tests:** `npm run typecheck` / `lint` / `build`, `npm run test:unit` (incl.
+  project repository tests), demo regression (`WV_FORCE_DEMO=1 npx playwright test`),
+  and the live suite incl. `e2e/supabase-projects.spec.ts` + `e2e/manifest.spec.ts`
+  + `e2e/phase32-screenshots.spec.ts` (`--workers=1`, reads `.env.local`).

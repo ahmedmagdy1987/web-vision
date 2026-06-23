@@ -8,7 +8,7 @@ import { test, expect, type Page } from "@playwright/test";
 const SUPABASE = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
 const EMAIL = process.env.E2E_TEST_EMAIL ?? "";
 const PASSWORD = process.env.E2E_TEST_PASSWORD ?? "";
-const ROUTES = ["/", "/identity", "/products", "/studio", "/gallery"];
+const ROUTES = ["/", "/projects", "/identity", "/products", "/locations", "/studio", "/gallery"];
 const VIEWPORTS = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "laptop", width: 1280, height: 800 },

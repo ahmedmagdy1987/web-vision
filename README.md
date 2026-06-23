@@ -52,6 +52,22 @@ selects its backend at runtime:
 > and [`docs/SUPABASE.md`](docs/SUPABASE.md) §6 (incl. the required Redirect-URL
 > allow-list).
 
+> **Phase 3.2 — single-workspace product alignment (Projects & Locations):** the
+> product is now organized as one internal Malahi tool with **Projects** as the top
+> layer (Projects → brands, products, locations, jobs, results). Generic
+> organization/workspace UX was removed (an unassigned user sees an "Access pending"
+> screen, not "create workspace"); the header has a **Project selector**; new
+> **Projects** and **Locations** pages were added; Home Quick Create is a
+> project-first cascade with explicit empty-dropdown guidance; Studio gained a
+> readiness state + a premium "cooking" generation canvas; Gallery/Identity/Products
+> and global search gained project filtering. The manifest error was fixed. See
+> [`artifacts/web-vision-phase-3-2-product-alignment/REVIEW.md`](artifacts/web-vision-phase-3-2-product-alignment/REVIEW.md)
+> and the product/access model in [`docs/PRODUCT.md`](docs/PRODUCT.md).
+>
+> The real owner was reassigned to the operational Malahi workspace; the final
+> owner handover + synthetic-account removal are **deferred until the owner confirms
+> access**.
+
 Additional quality gate: `npm run test:unit` (Vitest unit tests). Live Supabase
 verification (requires `.env.local` configured for the project):
 `npx playwright test e2e/supabase-auth.spec.ts e2e/supabase-persistence.spec.ts e2e/supabase-smoke.spec.ts --workers=1`.
