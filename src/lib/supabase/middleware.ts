@@ -18,7 +18,12 @@ import { getPublicSupabaseEnv } from "./env";
 // (callback, set-password, forgot-password, invite-expired).
 const PUBLIC_PREFIXES = ["/sign-in", "/auth"];
 
+// Public metadata/static asset routes must never be redirected to sign-in
+// (otherwise the manifest/icon responses become HTML and fail to parse).
+const PUBLIC_ASSETS = /^\/(manifest\.webmanifest|apple-icon|icon\.svg|favicon\.ico|robots\.txt|sitemap\.xml)$/;
+
 function isPublicPath(pathname: string): boolean {
+  if (PUBLIC_ASSETS.test(pathname)) return true;
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`) || pathname.startsWith(`${p}?`));
 }
 

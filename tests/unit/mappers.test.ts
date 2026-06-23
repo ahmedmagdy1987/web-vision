@@ -176,6 +176,7 @@ describe("resultFromRow", () => {
     is_favorite: true,
     snapshot,
     provider_metadata: { requestId: "req1" },
+    project_id: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
   };

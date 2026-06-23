@@ -160,6 +160,7 @@ export type GenerationJobRow = Stamps & {
   created_by: string | null;
   started_at: string | null;
   completed_at: string | null;
+  project_id: string | null;
 };
 export type GenerationJobProductRow = {
   job_id: string;
@@ -181,7 +182,27 @@ export type GenerationResultRow = Stamps & {
   is_favorite: boolean;
   snapshot: Json;
   provider_metadata: Json | null;
+  project_id: string | null;
 };
+
+export type ProjectStatus = "active" | "draft" | "completed" | "archived";
+export type ProjectRow = Stamps & {
+  id: string;
+  organization_id: string;
+  name: string;
+  slug: string;
+  client_name: string | null;
+  description: string | null;
+  status: ProjectStatus;
+  cover_bucket: string | null;
+  cover_path: string | null;
+  start_date: string | null;
+  notes: string | null;
+  created_by: string | null;
+};
+export type ProjectBrandRow = { project_id: string; brand_id: string };
+export type ProjectProductRow = { project_id: string; product_id: string };
+export type ProjectLocationRow = { project_id: string; location_id: string };
 
 type Table<Row, Insert, Update> = {
   Row: Row;
@@ -209,6 +230,10 @@ export type Database = {
       generation_jobs: Table<GenerationJobRow, Insertable<GenerationJobRow, "organization_id" | "request">, Partial<GenerationJobRow>>;
       generation_job_products: Table<GenerationJobProductRow, GenerationJobProductRow, Partial<GenerationJobProductRow>>;
       generation_results: Table<GenerationResultRow, Insertable<GenerationResultRow, "job_id" | "organization_id" | "storage_path" | "mime_type" | "snapshot">, Partial<GenerationResultRow>>;
+      projects: Table<ProjectRow, Insertable<ProjectRow, "organization_id" | "name" | "slug">, Partial<ProjectRow>>;
+      project_brands: Table<ProjectBrandRow, ProjectBrandRow, Partial<ProjectBrandRow>>;
+      project_products: Table<ProjectProductRow, ProjectProductRow, Partial<ProjectProductRow>>;
+      project_locations: Table<ProjectLocationRow, ProjectLocationRow, Partial<ProjectLocationRow>>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -227,6 +252,7 @@ export type Database = {
       brand_asset_type: BrandAssetType;
       job_status: JobStatusDb;
       review_status: ReviewStatusDb;
+      project_status: ProjectStatus;
     };
     CompositeTypes: Record<string, never>;
   };

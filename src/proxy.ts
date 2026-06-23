@@ -9,6 +9,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Run on all routes except Next internals and static image assets.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico)$).*)"],
+  // Run on all routes except Next internals, metadata routes (manifest/icons),
+  // and static image assets — so the manifest/icons are served (not auth-gated).
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|apple-icon|icon|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|webmanifest)$).*)",
+  ],
 };
