@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MapPin, Package2, Star } from "lucide-react";
+import { FolderKanban, MapPin, Package2, Star } from "lucide-react";
 import type { GenerationResult } from "@/lib/domain";
 import { CONTROL_LABELS } from "@/lib/domain";
+import { useProjects } from "@/lib/hooks";
 import { resultRepository } from "@/lib/repositories";
 import { readableForeground } from "@/lib/theme/brand-accent";
 import { AspectFrame } from "@/components/common/aspect-frame";
@@ -27,6 +28,8 @@ function summarizeNames(names: string[]): string {
 
 export function ResultCard({ result }: ResultCardProps) {
   const { snapshot } = result;
+  const projects = useProjects();
+  const project = result.projectId ? projects.find((p) => p.id === result.projectId) : undefined;
 
   const handleToggleFavorite = React.useCallback(() => {
     const next = resultRepository.toggleFavorite(result.id);
@@ -98,6 +101,12 @@ export function ResultCard({ result }: ResultCardProps) {
             <span className="flex items-center gap-1.5">
               <MapPin className="size-3.5 shrink-0" />
               <span className="truncate">{snapshot.locationName}</span>
+            </span>
+          )}
+          {project && (
+            <span className="flex items-center gap-1.5">
+              <FolderKanban className="size-3.5 shrink-0" />
+              <span className="truncate">{project.name}</span>
             </span>
           )}
         </div>

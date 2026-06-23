@@ -10,6 +10,7 @@ import {
   useLocations,
   useMounted,
   useProducts,
+  useProjects,
   useResults,
 } from "@/lib/hooks";
 import { EmptyState } from "@/components/common/empty-state";
@@ -37,6 +38,7 @@ export default function GalleryPage() {
   const brands = useBrands();
   const products = useProducts();
   const locations = useLocations();
+  const projects = useProjects();
   const { searchQuery } = useAppState();
 
   const [view, setView] = React.useState<GalleryView>("grid");
@@ -87,6 +89,7 @@ export default function GalleryPage() {
 
         <div className="hidden md:block">
           <GalleryFilters
+            projects={projects}
             brands={brands}
             products={products}
             locations={locations}
@@ -96,6 +99,7 @@ export default function GalleryPage() {
         </div>
         <div className="md:hidden">
           <GalleryMobileFilters
+            projects={projects}
             brands={brands}
             products={products}
             locations={locations}

@@ -2,11 +2,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Loader2, Palette, RotateCcw, Sparkles, TriangleAlert } from "lucide-react";
+import { Loader2, RotateCcw, Sparkles, TriangleAlert } from "lucide-react";
 import type { ComposeInput } from "@/lib/services/instruction-composer";
 import type { Location, ResultSnapshot, UploadedAssetRef } from "@/lib/domain";
-import { appStore, useBrands, useIsMobile, useLocations, useProducts } from "@/lib/hooks";
+import { appStore, useActiveProject, useBrands, useIsMobile, useLocations, useProducts } from "@/lib/hooks";
 import { useActiveBrand } from "@/lib/hooks";
 import { locationRepository } from "@/lib/repositories";
 import { buildGenerationRequest, composeInstructions } from "@/lib/services/instruction-composer";
@@ -16,7 +15,6 @@ import { studioPrefill, type StudioPrefill } from "@/lib/store/studio-draft";
 import { nowIso } from "@/lib/ids";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { toast } from "@/components/ui/sonner";
 import type { GenerationJob } from "@/lib/domain";
@@ -26,6 +24,7 @@ import { ControlsPanel } from "./controls-panel";
 import { InstructionsPreview } from "./instructions-preview";
 import { ReadinessSummary, type ReadinessItem } from "./readiness-summary";
 import { StudioMobile } from "./studio-mobile";
+import { StudioReadiness, type StudioReadinessRow } from "./studio-readiness";
 import { createInitialState, studioReducer } from "./studio-state";
 
 // Module-scoped one-shot guard so the prefill handoff is consumed exactly once
@@ -44,6 +43,7 @@ export function StudioWorkspace() {
   const locations = useLocations();
   const isMobile = useIsMobile();
   const { brand: fallbackBrand } = useActiveBrand();
+  const { project: activeProject } = useActiveProject();
 
   const [prefill] = React.useState(takePrefillOnce);
   const [state, dispatch] = React.useReducer(studioReducer, prefill, createInitialState);
@@ -57,6 +57,9 @@ export function StudioWorkspace() {
   }, [prefill]);
 
   // ---- Derive effective selections -------------------------------------
+  // Scope selectable assets to the active project (demo-safe: fall back to all
+  // when there is no active project).
+  const projectBrands = activeProject ? brands.filter((b) => activeProject.brandIds.includes(b.id)) : brands;
   const brand = brands.find((b) => b.id === state.brandId) ?? fallbackBrand;
   const brandLogos = brand ? brand.logos.filter((l) => l.status === "active") : [];
   const logo =
@@ -64,11 +67,18 @@ export function StudioWorkspace() {
     brandLogos.find((l) => l.id === brand?.defaultLogoId) ??
     brandLogos[0] ??
     null;
-  const brandProducts = brand ? products.filter((p) => p.brandId === brand.id && p.status === "active") : [];
+  const brandProducts = brand
+    ? products.filter(
+        (p) =>
+          p.brandId === brand.id &&
+          p.status === "active" &&
+          (!activeProject || activeProject.productIds.includes(p.id)),
+      )
+    : [];
   const selectedProducts = brandProducts.filter((p) => state.productIds.includes(p.id));
   const selectedProductIds = selectedProducts.map((p) => p.id);
 
-  const savedLocations = locations;
+  const savedLocations = activeProject ? locations.filter((l) => activeProject.locationIds.includes(l.id)) : locations;
   const selectedLocation = savedLocations.find((l) => l.id === state.locationId) ?? null;
 
   // Resolve the location + main image used for preview/compose.
@@ -136,6 +146,7 @@ export function StudioWorkspace() {
       ? !!selectedLocation
       : state.newLocation.images.length > 0 && !!state.newLocation.name.trim();
   const readinessItems: ReadinessItem[] = [
+    { label: "Project", done: !!activeProject },
     { label: "Brand", done: !!brand },
     { label: "Logo", done: !!logo },
     {
@@ -181,6 +192,7 @@ export function StudioWorkspace() {
     // For an unsaved new location there is no persisted id to reference.
     const finalRequest = {
       ...request,
+      projectId: activeProject?.id,
       locationId: isUnsavedLocation ? undefined : location?.id || undefined,
     };
 
@@ -247,19 +259,42 @@ export function StudioWorkspace() {
   const onNotesChange = (notes: string) => dispatch({ type: "set-notes", notes });
 
   if (!brand) {
+    const rows: StudioReadinessRow[] = [
+      {
+        label: "Project",
+        done: !!activeProject,
+        why: "Pick a project from the header to organize this work.",
+        actionHref: "/projects",
+        actionLabel: "Projects",
+      },
+      {
+        label: "Brand & logo",
+        done: false,
+        why: activeProject
+          ? "No brands available for this project. Add a brand in Identity to continue."
+          : "Add a brand and logos in Identity.",
+        actionHref: "/identity?new=1",
+        actionLabel: "Add brand",
+      },
+      {
+        label: "Products",
+        done: false,
+        why: "Add the games or products to place in the scene.",
+        actionHref: "/products",
+        actionLabel: "Products",
+      },
+      {
+        label: "Location",
+        done: false,
+        why: "Upload a client site in Locations to visualize against.",
+        actionHref: "/locations",
+        actionLabel: "Locations",
+      },
+    ];
     return (
       <div className="space-y-6">
         <PageHeader title="Studio" description="Compose a brief and generate realistic client mockups." />
-        <EmptyState
-          icon={Palette}
-          title="Create a brand to get started"
-          description="The Studio composes mockups around a brand's identity, logos and products. Add a brand first."
-          action={
-            <Button asChild>
-              <Link href="/identity?new=1">Create a brand</Link>
-            </Button>
-          }
-        />
+        <StudioReadiness rows={rows} />
       </div>
     );
   }
@@ -278,7 +313,7 @@ export function StudioWorkspace() {
           }
         />
         <StudioMobile
-          brands={brands}
+          brands={projectBrands}
           brandLogos={brandLogos}
           brandProducts={brandProducts}
           locations={savedLocations}
@@ -328,7 +363,7 @@ export function StudioWorkspace() {
         <Card className="h-fit xl:order-1">
           <CardContent className="pt-6">
             <AssetsPanel
-              brands={brands}
+              brands={projectBrands}
               brandLogos={brandLogos}
               brandProducts={brandProducts}
               locations={savedLocations}

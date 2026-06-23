@@ -31,7 +31,7 @@ export default function HomePage() {
       </div>
 
       <div className="order-2 grid gap-6 lg:order-3 lg:grid-cols-[1.6fr_1fr]">
-        <QuickStartCard brand={brand} />
+        <QuickStartCard />
         <div className="space-y-6">
           {!ready ? (
             <BrandSpotlightSkeleton />

@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Copy,
   Download,
+  FolderKanban,
   MapPin,
   Package2,
   RefreshCw,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import type { GenerationResult, GenerationSettings } from "@/lib/domain";
 import { ASPECT_RATIO_VALUES, CONTROL_LABELS, creativityLabel } from "@/lib/domain";
+import { useProjects } from "@/lib/hooks";
 import { resultRepository } from "@/lib/repositories";
 import { studioPrefill } from "@/lib/store/studio-draft";
 import { readableForeground } from "@/lib/theme/brand-accent";
@@ -85,6 +87,8 @@ function ContinueAction({
 export function ResultDetail({ result }: ResultDetailProps) {
   const router = useRouter();
   const { snapshot } = result;
+  const projects = useProjects();
+  const project = result.projectId ? projects.find((p) => p.id === result.projectId) : undefined;
   const accentFg = readableForeground(snapshot.brandAccent);
   const settingRows = React.useMemo(() => buildSettingRows(snapshot.settings), [snapshot.settings]);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
@@ -254,6 +258,15 @@ export function ResultDetail({ result }: ResultDetailProps) {
         {/* Context */}
         <section className="space-y-3">
           <SectionTitle>Context</SectionTitle>
+          {project && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                <FolderKanban className="size-3.5" />
+                Project
+              </span>
+              <span className="text-sm">{project.name}</span>
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
               <Package2 className="size-3.5" />

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { X } from "lucide-react";
-import type { Brand, EntityStatus, ProductUsage } from "@/lib/domain";
+import type { Brand, EntityStatus, ProductUsage, Project } from "@/lib/domain";
 import { PRODUCT_USAGE_LABELS } from "@/lib/domain";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,7 @@ export type StatusFilter = EntityStatus | "all";
 export type UsageFilter = ProductUsage | "all";
 
 export interface ProductFilterState {
+  projectId: string;
   brandId: string;
   category: string;
   usage: UsageFilter;
@@ -29,6 +30,7 @@ export interface ProductFilterState {
 }
 
 export const DEFAULT_FILTERS: ProductFilterState = {
+  projectId: ALL_VALUE,
   brandId: ALL_VALUE,
   category: ALL_VALUE,
   usage: "all",
@@ -36,6 +38,7 @@ export const DEFAULT_FILTERS: ProductFilterState = {
 };
 
 interface ProductFiltersProps {
+  projects: Project[];
   brands: Brand[];
   categories: string[];
   filters: ProductFilterState;
@@ -47,6 +50,7 @@ interface ProductFiltersProps {
 const USAGE_VALUES: ProductUsage[] = ["indoor", "outdoor", "both"];
 
 export function ProductFilters({
+  projects,
   brands,
   categories,
   filters,
@@ -57,6 +61,7 @@ export function ProductFilters({
   const patch = (next: Partial<ProductFilterState>) => onChange({ ...filters, ...next });
 
   const hasActiveFilters =
+    filters.projectId !== DEFAULT_FILTERS.projectId ||
     filters.brandId !== DEFAULT_FILTERS.brandId ||
     filters.category !== DEFAULT_FILTERS.category ||
     filters.usage !== DEFAULT_FILTERS.usage ||
@@ -79,6 +84,26 @@ export function ProductFilters({
       />
 
       <div className="flex flex-wrap items-end gap-3">
+        {/* Project */}
+        <div className="min-w-40 flex-1 space-y-1.5 sm:flex-none">
+          <Label htmlFor="filter-project" className="text-muted-foreground text-xs">
+            Project
+          </Label>
+          <Select value={filters.projectId} onValueChange={(value) => patch({ projectId: value })}>
+            <SelectTrigger id="filter-project" className="sm:w-44">
+              <SelectValue placeholder="All projects" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_VALUE}>All projects</SelectItem>
+              {projects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Brand */}
         <div className="min-w-40 flex-1 space-y-1.5 sm:flex-none">
           <Label htmlFor="filter-brand" className="text-muted-foreground text-xs">

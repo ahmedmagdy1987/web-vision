@@ -12,6 +12,7 @@ import {
   useMounted,
   useIsMobile,
   useProducts,
+  useProjects,
 } from "@/lib/hooks";
 import { productRepository } from "@/lib/repositories";
 import { studioPrefill } from "@/lib/store/studio-draft";
@@ -50,6 +51,7 @@ export default function ProductsPage() {
 
   const products = useProducts();
   const brands = useBrands();
+  const projects = useProjects();
   const { brand: activeBrand } = useActiveBrand();
   const { searchQuery } = useAppState();
 
@@ -67,17 +69,23 @@ export default function ProductsPage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [products]);
 
+  const selectedProject = React.useMemo(
+    () => (filters.projectId !== ALL_VALUE ? projects.find((p) => p.id === filters.projectId) : undefined),
+    [projects, filters.projectId],
+  );
+
   const filtered = React.useMemo(() => {
     return products
       .filter((p) => {
         if (filters.status !== "all" && p.status !== filters.status) return false;
+        if (filters.projectId !== ALL_VALUE && !selectedProject?.productIds.includes(p.id)) return false;
         if (filters.brandId !== ALL_VALUE && p.brandId !== filters.brandId) return false;
         if (filters.category !== ALL_VALUE && p.category !== filters.category) return false;
         if (filters.usage !== "all" && p.usage !== filters.usage) return false;
         return matchesSearch(p, searchQuery);
       })
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  }, [products, filters, searchQuery]);
+  }, [products, filters, searchQuery, selectedProject]);
 
   const filteredIds = React.useMemo(() => new Set(filtered.map((p) => p.id)), [filtered]);
   // Selection is limited to currently visible products so the action bar stays accurate.
@@ -142,6 +150,7 @@ export default function ProductsPage() {
   };
 
   const isFiltering =
+    filters.projectId !== DEFAULT_FILTERS.projectId ||
     filters.brandId !== DEFAULT_FILTERS.brandId ||
     filters.category !== DEFAULT_FILTERS.category ||
     filters.usage !== DEFAULT_FILTERS.usage ||
@@ -162,6 +171,7 @@ export default function ProductsPage() {
       />
 
       <ProductFilters
+        projects={projects}
         brands={brands}
         categories={categories}
         filters={filters}
@@ -187,14 +197,27 @@ export default function ProductsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={isFiltering ? SearchX : PackageSearch}
-          title={isFiltering ? "No products match your filters" : "No products to show"}
+          title={
+            selectedProject
+              ? "No products in this project"
+              : isFiltering
+                ? "No products match your filters"
+                : "No products to show"
+          }
           description={
-            isFiltering
-              ? "Try a different search term or clear the filters to see everything."
-              : "There are no products in this view."
+            selectedProject
+              ? "No products available for this project. Add games or products in Products to continue."
+              : isFiltering
+                ? "Try a different search term or clear the filters to see everything."
+                : "There are no products in this view."
           }
           action={
-            isFiltering ? (
+            selectedProject ? (
+              <Button onClick={openCreate}>
+                <Plus />
+                Add product
+              </Button>
+            ) : isFiltering ? (
               <Button
                 variant="outline"
                 onClick={() => {

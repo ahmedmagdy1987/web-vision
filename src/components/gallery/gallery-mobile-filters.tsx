@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ArrowDownWideNarrow, ArrowUpWideNarrow, SlidersHorizontal, X } from "lucide-react";
-import type { Brand, Location, Product } from "@/lib/domain";
+import type { Brand, Location, Product, Project } from "@/lib/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,7 @@ import {
 } from "./filters";
 
 interface GalleryMobileFiltersProps {
+  projects: Project[];
   brands: Brand[];
   products: Product[];
   locations: Location[];
@@ -46,12 +47,19 @@ const REVIEW_LABELS: Record<string, string> = {
   rejected: "Rejected",
 };
 
-export function GalleryMobileFilters({ brands, products, locations, filters, onChange }: GalleryMobileFiltersProps) {
+export function GalleryMobileFilters({ projects, brands, products, locations, filters, onChange }: GalleryMobileFiltersProps) {
   const [open, setOpen] = React.useState(false);
   const count = activeFilterCount(filters);
   const patch = (partial: Partial<GalleryFilterState>) => onChange({ ...filters, ...partial });
 
   const chips: Chip[] = [];
+  if (filters.projectId !== "all") {
+    chips.push({
+      key: "project",
+      label: projects.find((p) => p.id === filters.projectId)?.name ?? "Project",
+      onRemove: () => patch({ projectId: "all" }),
+    });
+  }
   if (filters.brandId !== "all") {
     chips.push({
       key: "brand",
@@ -100,6 +108,7 @@ export function GalleryMobileFilters({ brands, products, locations, filters, onC
               <SheetTitle>Filter results</SheetTitle>
             </SheetHeader>
             <GalleryFilters
+              projects={projects}
               brands={brands}
               products={products}
               locations={locations}

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ArrowDownWideNarrow, ArrowUpWideNarrow, RotateCcw, Star } from "lucide-react";
-import type { Brand, ID, Location, Product, ResultReview } from "@/lib/domain";
+import type { Brand, ID, Location, Product, Project, ResultReview } from "@/lib/domain";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -27,6 +27,7 @@ const REVIEW_OPTIONS: { value: ResultReview; label: string }[] = [
 ];
 
 interface GalleryFiltersProps {
+  projects: Project[];
   brands: Brand[];
   products: Product[];
   locations: Location[];
@@ -34,7 +35,7 @@ interface GalleryFiltersProps {
   onChange: (next: GalleryFilterState) => void;
 }
 
-export function GalleryFilters({ brands, products, locations, filters, onChange }: GalleryFiltersProps) {
+export function GalleryFilters({ projects, brands, products, locations, filters, onChange }: GalleryFiltersProps) {
   const patch = React.useCallback(
     (partial: Partial<GalleryFilterState>) => onChange({ ...filters, ...partial }),
     [filters, onChange],
@@ -63,7 +64,23 @@ export function GalleryFilters({ brands, products, locations, filters, onChange 
 
   return (
     <div className="bg-card/60 flex flex-col gap-4 rounded-xl border p-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <FilterField id="filter-project" label="Project">
+          <Select value={filters.projectId} onValueChange={(v) => patch({ projectId: v as ID | "all" })}>
+            <SelectTrigger id="filter-project" size="sm" aria-label="Filter by project">
+              <SelectValue placeholder="All projects" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All projects</SelectItem>
+              {projects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
+
         <FilterField id="filter-brand" label="Brand">
           <Select value={filters.brandId} onValueChange={handleBrandChange}>
             <SelectTrigger id="filter-brand" size="sm" aria-label="Filter by brand">

@@ -3,6 +3,7 @@ import type { GenerationResult, ID, ResultReview } from "@/lib/domain";
 export type GallerySort = "newest" | "oldest";
 
 export interface GalleryFilterState {
+  projectId: ID | "all";
   brandId: ID | "all";
   productId: ID | "all";
   locationId: ID | "all";
@@ -12,6 +13,7 @@ export interface GalleryFilterState {
 }
 
 export const DEFAULT_FILTERS: GalleryFilterState = {
+  projectId: "all",
   brandId: "all",
   productId: "all",
   locationId: "all",
@@ -23,6 +25,7 @@ export const DEFAULT_FILTERS: GalleryFilterState = {
 /** Whether any filter (other than sort) deviates from defaults. */
 export function hasActiveFilters(filters: GalleryFilterState): boolean {
   return (
+    filters.projectId !== "all" ||
     filters.brandId !== "all" ||
     filters.productId !== "all" ||
     filters.locationId !== "all" ||
@@ -34,6 +37,7 @@ export function hasActiveFilters(filters: GalleryFilterState): boolean {
 /** Count of active filter facets (for the filter button badge). */
 export function activeFilterCount(filters: GalleryFilterState): number {
   let count = 0;
+  if (filters.projectId !== "all") count++;
   if (filters.brandId !== "all") count++;
   if (filters.productId !== "all") count++;
   if (filters.locationId !== "all") count++;
@@ -53,6 +57,7 @@ export function applyGalleryFilters(
   const matched = results.filter((result) => {
     const { snapshot } = result;
 
+    if (filters.projectId !== "all" && result.projectId !== filters.projectId) return false;
     if (filters.brandId !== "all" && snapshot.brandId !== filters.brandId) return false;
     if (filters.productId !== "all" && !snapshot.productIds.includes(filters.productId)) return false;
     if (filters.locationId !== "all" && snapshot.locationId !== filters.locationId) return false;

@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ImageIcon, MapPin, Package, Palette, Search } from "lucide-react";
-import { appStore, useBrands, useLocations, useProducts, useResults } from "@/lib/hooks";
+import { FolderKanban, ImageIcon, MapPin, Package, Palette, Search } from "lucide-react";
+import { appStore, useBrands, useLocations, useProducts, useProjects, useResults } from "@/lib/hooks";
 import { studioPrefill } from "@/lib/store/studio-draft";
 import { AssetImage } from "@/components/common/asset-image";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -27,6 +27,7 @@ export function GlobalSearch() {
   const products = useProducts();
   const locations = useLocations();
   const results = useResults();
+  const projects = useProjects();
 
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -50,6 +51,23 @@ export function GlobalSearch() {
     fn();
     close();
   };
+
+  const projectHits: SearchHit[] = term
+    ? projects
+        .filter((p) => has(p.name) || has(p.clientName) || has(p.description))
+        .slice(0, 5)
+        .map((p) => ({
+          id: p.id,
+          title: p.name,
+          subtitle: p.clientName ? `Project · ${p.clientName}` : "Project",
+          icon: <FolderKanban className="size-4" />,
+          onSelect: () =>
+            navigate(() => {
+              appStore.setSelectedProject(p.id);
+              router.push(`/projects/${p.id}`);
+            }),
+        }))
+    : [];
 
   const brandHits: SearchHit[] = term
     ? brands
@@ -120,6 +138,7 @@ export function GlobalSearch() {
     : [];
 
   const groups: { label: string; icon: React.ReactNode; hits: SearchHit[] }[] = [
+    { label: "Projects", icon: <FolderKanban className="size-3.5" />, hits: projectHits },
     { label: "Brands", icon: <Palette className="size-3.5" />, hits: brandHits },
     { label: "Products", icon: <Package className="size-3.5" />, hits: productHits },
     { label: "Locations", icon: <MapPin className="size-3.5" />, hits: locationHits },

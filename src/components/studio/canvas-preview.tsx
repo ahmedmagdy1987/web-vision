@@ -1,13 +1,12 @@
 "use client";
 
-import { ImageIcon, Loader2, Sparkles, TriangleAlert } from "lucide-react";
+import { ImageIcon, Sparkles, TriangleAlert } from "lucide-react";
 import type { Brand, GenerationJob, GenerationSettings, LogoAsset, Product } from "@/lib/domain";
 import { CONTROL_LABELS } from "@/lib/domain";
 import { AssetImage } from "@/components/common/asset-image";
 import { AspectFrame } from "@/components/common/aspect-frame";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
+import { GeneratingCanvas } from "./generating-canvas";
 
 interface CanvasPreviewProps {
   settings: GenerationSettings;
@@ -78,31 +77,15 @@ export function CanvasPreview({
             </div>
           )}
 
-          {/* Job overlay */}
-          {(busy || failed) && (
-            <div
-              className={cn(
-                "absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center backdrop-blur-sm",
-                failed ? "bg-destructive/20" : "bg-background/70",
-              )}
-            >
-              {failed ? (
-                <>
-                  <TriangleAlert className="text-destructive size-8" />
-                  <p className="text-sm font-medium">Generation failed</p>
-                  <p className="text-muted-foreground max-w-xs text-xs">{job?.error}</p>
-                </>
-              ) : (
-                <>
-                  <Loader2 className="text-brand size-8 animate-spin" />
-                  <p className="text-sm font-medium">
-                    {job?.status === "queued" ? "Queued…" : "Generating your mockup…"}
-                  </p>
-                  <div className="w-full max-w-xs">
-                    <Progress value={job?.progress ?? 0} />
-                  </div>
-                </>
-              )}
+          {/* Premium "cooking" generation overlay */}
+          {busy && <GeneratingCanvas job={job} />}
+
+          {/* Failed state */}
+          {failed && (
+            <div className="bg-destructive/20 absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center backdrop-blur-sm">
+              <TriangleAlert className="text-destructive size-8" />
+              <p className="text-sm font-medium">Generation failed</p>
+              <p className="text-muted-foreground max-w-xs text-xs">{job?.error}</p>
             </div>
           )}
         </AspectFrame>
