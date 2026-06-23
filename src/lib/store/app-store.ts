@@ -5,6 +5,7 @@ export type ThemePreference = "light" | "dark" | "system";
 
 export interface AppState {
   selectedBrandId: ID | null;
+  selectedProjectId: ID | null;
   searchQuery: string;
   sidebarCollapsed: boolean;
   theme: ThemePreference;
@@ -12,6 +13,7 @@ export interface AppState {
 
 const DEFAULT_STATE: AppState = {
   selectedBrandId: null,
+  selectedProjectId: null,
   searchQuery: "",
   sidebarCollapsed: false,
   theme: "system",
@@ -21,6 +23,7 @@ type Listener = () => void;
 
 const KEYS = {
   selectedBrandId: "app:selectedBrandId",
+  selectedProjectId: "app:selectedProjectId",
   sidebar: "app:sidebarCollapsed",
   theme: "app:theme",
 } as const;
@@ -36,6 +39,7 @@ class AppStore {
     if (this.loaded || typeof window === "undefined") return;
     this.state = {
       selectedBrandId: storage.get<ID>(KEYS.selectedBrandId) ?? null,
+      selectedProjectId: storage.get<ID>(KEYS.selectedProjectId) ?? null,
       searchQuery: "",
       sidebarCollapsed: storage.get<boolean>(KEYS.sidebar) ?? false,
       theme: storage.get<ThemePreference>(KEYS.theme) ?? "system",
@@ -74,6 +78,12 @@ class AppStore {
     this.set({ selectedBrandId: id });
     if (id) storage.set(KEYS.selectedBrandId, id);
     else storage.remove(KEYS.selectedBrandId);
+  }
+
+  setSelectedProject(id: ID | null): void {
+    this.set({ selectedProjectId: id });
+    if (id) storage.set(KEYS.selectedProjectId, id);
+    else storage.remove(KEYS.selectedProjectId);
   }
 
   setSearchQuery(query: string): void {

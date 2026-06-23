@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { OrgOnboarding } from "@/components/auth/org-onboarding";
+import { PendingAccess } from "@/components/auth/pending-access";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
 import { DocumentTitle } from "./document-title";
@@ -31,7 +31,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (mode === "supabase") {
     if (!ready) return <FullScreen>Loading your workspace…</FullScreen>;
     if (!user) return <FullScreen>Redirecting to sign in…</FullScreen>;
-    if (!activeOrg) return <OrgOnboarding />;
+    if (!activeOrg) return <PendingAccess />;
   }
 
   // Studio is a workspace and gets more horizontal room than admin pages.

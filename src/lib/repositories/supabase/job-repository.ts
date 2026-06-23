@@ -58,6 +58,7 @@ export class SupabaseJobRepository extends SupabaseCollection<GenerationJob> imp
           organization_id: orgId,
           brand_id: request.brandId || null,
           location_id: request.locationId ?? null,
+          project_id: request.projectId ?? null,
           status: toDbStatus(job.status),
           progress: job.progress,
           request: JSON.parse(JSON.stringify(request)),

@@ -86,6 +86,7 @@ export async function startGeneration(input: StartGenerationInput): Promise<Gene
         id: resultId,
         jobId: queued.id,
         requestId: request.id,
+        projectId: request.projectId,
         image: toImageAsset(image.url, `${snapshot.brandName} mockup ${index + 1}`, image.width, image.height),
         index,
         seed: image.seed,

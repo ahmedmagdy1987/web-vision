@@ -34,7 +34,6 @@ export interface AuthValue {
   signInWithPassword: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   selectOrg: (orgId: string) => void;
-  createOrganization: (name: string) => Promise<{ error?: string }>;
   /** Set the password for the current (invite/recovery) session. */
   updatePassword: (newPassword: string) => Promise<{ error?: string }>;
   /** Send a password setup/recovery email with the onboarding redirect. */
@@ -130,16 +129,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     },
     selectOrg: (id) => applyOrg(id),
-    createOrganization: async (name) => {
-      try {
-        const org = await organizationRepository.create(name);
-        await loadOrgs();
-        applyOrg(org.id);
-        return {};
-      } catch (e) {
-        return { error: e instanceof Error ? e.message : "Could not create organization." };
-      }
-    },
     updatePassword: async (newPassword) => {
       try {
         const { error } = await getBrowserSupabase().auth.updateUser({ password: newPassword });

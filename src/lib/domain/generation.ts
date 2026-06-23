@@ -134,6 +134,8 @@ export interface UploadedAssetRef {
 
 export interface GenerationRequest {
   id: ID;
+  /** Project this generation belongs to (organizes assets + gallery). */
+  projectId?: ID;
   // selected asset IDs
   brandId: ID;
   logoId?: ID;
@@ -208,6 +210,8 @@ export interface GenerationResult {
   id: ID;
   jobId: ID;
   requestId: ID;
+  /** Project this result belongs to (for Gallery/Projects filtering). */
+  projectId?: ID;
   /** Preview image (mock implementation generates an SVG data URL). */
   image: ImageAsset;
   /** Index within the job for output counts > 1. */

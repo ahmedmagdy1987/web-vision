@@ -212,6 +212,7 @@ export function resultFromRow(row: GenerationResultRow, sign: SignUrl): Generati
     id: row.id,
     jobId: row.job_id,
     requestId: meta?.requestId ?? row.job_id,
+    projectId: row.project_id ?? undefined,
     image,
     index: row.result_index,
     seed: Number(row.seed ?? 0),

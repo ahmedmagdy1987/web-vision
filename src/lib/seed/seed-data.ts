@@ -8,6 +8,7 @@ import type {
   Location,
   LogoAsset,
   Product,
+  Project,
   ResultReview,
   ResultSnapshot,
 } from "@/lib/domain";
@@ -639,6 +640,7 @@ function buildResults(
       id: resultId,
       jobId,
       requestId: request.id,
+      projectId: "proj_general",
       image,
       index: 0,
       seed: seed.key.length * 11,
@@ -727,6 +729,7 @@ export interface SeedBundle {
   locations: Location[];
   jobs: GenerationJob[];
   results: GenerationResult[];
+  projects: Project[];
 }
 
 let cached: SeedBundle | null = null;
@@ -739,7 +742,35 @@ export function buildSeed(): SeedBundle {
   const locations = buildLocations();
   const { jobs, results } = buildResults(brands, products, locations);
   const extraJobs = buildExtraJobs(brands, products, locations);
+  const ts = "2026-06-01T09:00:00.000Z";
+  const projects: Project[] = [
+    {
+      id: "proj_general",
+      name: "General",
+      slug: "general",
+      description: "Default project holding the existing Malahi assets.",
+      status: "active",
+      brandIds: brands.map((b) => b.id),
+      productIds: products.map((p) => p.id),
+      locationIds: locations.map((l) => l.id),
+      createdAt: ts,
+      updatedAt: ts,
+    },
+    {
+      id: "proj_seaside",
+      name: "Seaside Boardwalk Proposal",
+      slug: "seaside-boardwalk-proposal",
+      clientName: "Aventura Parks",
+      description: "Concept visuals for the seaside boardwalk activation.",
+      status: "active",
+      brandIds: brands.slice(0, 2).map((b) => b.id),
+      productIds: products.slice(0, 2).map((p) => p.id),
+      locationIds: locations.slice(0, 1).map((l) => l.id),
+      createdAt: ts,
+      updatedAt: ts,
+    },
+  ];
   // Newest activity first (processing/failed are most recent).
-  cached = { brands, products, locations, jobs: [...extraJobs, ...jobs], results };
+  cached = { brands, products, locations, jobs: [...extraJobs, ...jobs], results, projects };
   return cached;
 }

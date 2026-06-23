@@ -16,18 +16,21 @@ import { productRepository as localProductRepository } from "./product-repositor
 import { locationRepository as localLocationRepository } from "./location-repository";
 import { jobRepository as localJobRepository } from "./job-repository";
 import { resultRepository as localResultRepository } from "./result-repository";
+import { projectRepository as localProjectRepository } from "./project-repository";
 
 import { SupabaseBrandRepository } from "./supabase/brand-repository";
 import { SupabaseProductRepository } from "./supabase/product-repository";
 import { SupabaseLocationRepository } from "./supabase/location-repository";
 import { SupabaseJobRepository } from "./supabase/job-repository";
 import { SupabaseResultRepository } from "./supabase/result-repository";
+import { SupabaseProjectRepository } from "./supabase/project-repository";
 
 import type {
   BrandRepositoryApi,
   JobRepositoryApi,
   LocationRepositoryApi,
   ProductRepositoryApi,
+  ProjectRepositoryApi,
   ResultRepositoryApi,
 } from "./types";
 
@@ -48,6 +51,9 @@ export const jobRepository: JobRepositoryApi = useSupabase
 export const resultRepository: ResultRepositoryApi = useSupabase
   ? new SupabaseResultRepository()
   : localResultRepository;
+export const projectRepository: ProjectRepositoryApi = useSupabase
+  ? new SupabaseProjectRepository()
+  : localProjectRepository;
 
 /* ----------------------------- re-exports ------------------------------ */
 export { storage } from "./storage";
@@ -58,6 +64,7 @@ export { ProductRepository } from "./product-repository";
 export { LocationRepository } from "./location-repository";
 export { JobRepository } from "./job-repository";
 export { ResultRepository } from "./result-repository";
+export { ProjectRepository } from "./project-repository";
 
 export { organizationRepository } from "./supabase/organization-repository";
 export type { Organization, OrgMembership } from "./supabase/organization-repository";
@@ -73,4 +80,6 @@ export type {
   CreateLogoInput,
   ProductInput,
   LocationInput,
+  ProjectInput,
+  ProjectRepositoryApi,
 } from "./types";

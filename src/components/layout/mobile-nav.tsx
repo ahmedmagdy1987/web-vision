@@ -13,7 +13,7 @@ export function MobileNav() {
       aria-label="Primary"
       className="bg-background/95 fixed inset-x-0 bottom-0 z-30 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
     >
-      <ul className="grid grid-cols-5">
+      <ul className="grid" style={{ gridTemplateColumns: `repeat(${NAV_ITEMS.length}, minmax(0, 1fr))` }}>
         {NAV_ITEMS.map((item) => {
           const active = isNavItemActive(item.href, pathname);
           return (

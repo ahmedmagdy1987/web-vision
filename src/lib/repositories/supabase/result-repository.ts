@@ -45,6 +45,7 @@ export class SupabaseResultRepository extends SupabaseCollection<GenerationResul
           id: result.id,
           job_id: result.jobId,
           organization_id: orgId,
+          project_id: result.projectId ?? null,
           storage_bucket: "web-vision",
           storage_path: path,
           mime_type: result.image.mimeType,

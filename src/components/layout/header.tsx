@@ -5,8 +5,8 @@ import { Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AccountMenu } from "./account-menu";
 import { AppLogo } from "./app-logo";
-import { BrandSelector } from "./brand-selector";
 import { GlobalSearch } from "./global-search";
+import { ProjectSelector } from "./project-selector";
 import { ThemeToggle } from "./theme-toggle";
 
 export function Header() {
@@ -16,7 +16,7 @@ export function Header() {
         <AppLogo collapsed />
       </Link>
 
-      <BrandSelector />
+      <ProjectSelector />
 
       <GlobalSearch />
 

@@ -1,12 +1,13 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { Brand, GenerationJob, GenerationResult, Location, Product } from "@/lib/domain";
+import type { Brand, GenerationJob, GenerationResult, Location, Product, Project } from "@/lib/domain";
 import {
   brandRepository,
   jobRepository,
   locationRepository,
   productRepository,
+  projectRepository,
   resultRepository,
 } from "@/lib/repositories";
 import type { ReadableStore } from "@/lib/repositories/types";
@@ -34,4 +35,8 @@ export function useJobs(): GenerationJob[] {
 
 export function useResults(): GenerationResult[] {
   return useCollection(resultRepository);
+}
+
+export function useProjects(): Project[] {
+  return useCollection(projectRepository);
 }

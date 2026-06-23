@@ -22,6 +22,8 @@ import type {
   Product,
   ProductDimensions,
   ProductUsage,
+  Project,
+  ProjectStatus,
   ResultReview,
   JobStatus,
 } from "@/lib/domain";
@@ -71,6 +73,15 @@ export interface LocationInput {
   saved?: boolean;
 }
 
+export interface ProjectInput {
+  name: string;
+  clientName?: string;
+  description?: string;
+  status?: ProjectStatus;
+  startDate?: string;
+  notes?: string;
+}
+
 /* --------------------------- repository APIs ---------------------------- */
 export interface BrandRepositoryApi extends ReadableStore<Brand> {
   list(): Brand[];
@@ -113,6 +124,17 @@ export interface JobRepositoryApi extends ReadableStore<GenerationJob> {
   setProgress(id: ID, progress: number): GenerationJob | undefined;
   attachResults(id: ID, resultIds: ID[]): GenerationJob | undefined;
   fail(id: ID, error: string): GenerationJob | undefined;
+}
+
+export interface ProjectRepositoryApi extends ReadableStore<Project> {
+  list(): Project[];
+  getById(id: ID): Project | undefined;
+  addProject(input: ProjectInput): Project;
+  updateProject(id: ID, patch: Partial<ProjectInput>): Project | undefined;
+  setStatus(id: ID, status: ProjectStatus): Project | undefined;
+  assignBrand(projectId: ID, brandId: ID, assigned: boolean): void;
+  assignProduct(projectId: ID, productId: ID, assigned: boolean): void;
+  assignLocation(projectId: ID, locationId: ID, assigned: boolean): void;
 }
 
 export interface ResultRepositoryApi extends ReadableStore<GenerationResult> {
