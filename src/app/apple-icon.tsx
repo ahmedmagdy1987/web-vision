@@ -1,8 +1,9 @@
 import { ImageResponse } from "next/og";
 
-// TEMPORARY Malahi placeholder — a plain brand-teal tile (no invented symbol, no
-// text/font dependency). The official Malahi logo asset is required: drop it at
-// public/malahi-logo.svg and regenerate this icon.
+// Neutral brand-teal app-icon. The official Malahi logo (public/malahi-logo.png)
+// is a WIDE lockup that cannot be squared into an app icon without cropping or
+// distorting it, so a clean neutral tile is used here. A dedicated square
+// official-icon version of the Malahi logo is still needed.
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 

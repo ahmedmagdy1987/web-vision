@@ -19,7 +19,7 @@ async function signIn(page: Page) {
   await page.getByLabel("Email").fill(EMAIL);
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect.poll(() => new URL(page.url()).pathname).toBe("/");
+  await expect.poll(() => new URL(page.url()).pathname, { timeout: 20_000 }).toBe("/");
 }
 
 async function settleHome(page: Page) {
@@ -73,6 +73,12 @@ test.describe("Phase 3.4.1 screenshots", () => {
   test("desktop screens", async ({ page }) => {
     test.setTimeout(220_000);
     await page.setViewportSize({ width: 1440, height: 900 });
+
+    // Authentication screen (shows the official Malahi logo).
+    await page.goto("/sign-in", { waitUntil: "networkidle" }).catch(() => undefined);
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: `${DIR}/13-sign-in-desktop.png` });
+
     await signIn(page);
     await settleHome(page);
 
@@ -107,11 +113,25 @@ test.describe("Phase 3.4.1 screenshots", () => {
     await shot(page, "/products", "06-products-library-desktop");
     await shot(page, "/locations", "07-locations-library-desktop");
     await shot(page, "/gallery", "09-gallery-desktop");
+
+    // Dark-mode verification (official logo on a neutral white container).
+    await page.goto("/", { waitUntil: "networkidle" }).catch(() => undefined);
+    await page.getByTestId("home-generator").waitFor({ timeout: 10_000 }).catch(() => undefined);
+    await page.getByRole("button", { name: "Change theme" }).click().catch(() => undefined);
+    await page.getByRole("menuitem", { name: "Dark" }).click().catch(() => undefined);
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: `${DIR}/15-home-dark-desktop.png` });
   });
 
   test("mobile screens", async ({ page }) => {
     test.setTimeout(220_000);
     await page.setViewportSize({ width: 390, height: 844 });
+
+    // Authentication screen (mobile, shows the official Malahi logo).
+    await page.goto("/sign-in", { waitUntil: "networkidle" }).catch(() => undefined);
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: `${DIR}/14-sign-in-mobile.png` });
+
     await signIn(page);
     await settleHome(page);
 

@@ -52,8 +52,8 @@ export function SignInForm() {
   return (
     <AuthCard
       title="Sign in"
-      description="Sign in to your Malahi creative workspace."
-      footer="Web Vision is an internal, invite-only workspace."
+      description="Sign in to your Malahi account."
+      footer="Malahi is an internal, invite-only tool."
     >
       {linkExpired && (
         <div

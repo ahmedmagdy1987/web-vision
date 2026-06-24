@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { PendingAccess } from "@/components/auth/pending-access";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
+import { MalahiLogo } from "./app-logo";
 import { DocumentTitle } from "./document-title";
 import { Header } from "./header";
 import { MobileNav } from "./mobile-nav";
@@ -29,7 +30,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Protected shell (Supabase mode only; demo mode is always open).
   if (mode === "supabase") {
-    if (!ready) return <FullScreen>Loading Malahi…</FullScreen>;
+    if (!ready)
+      return (
+        <FullScreen>
+          <div className="flex flex-col items-center gap-3">
+            <MalahiLogo imgClassName="h-8" />
+            <span>Loading…</span>
+          </div>
+        </FullScreen>
+      );
     if (!user) return <FullScreen>Redirecting to sign in…</FullScreen>;
     if (!activeOrg) return <PendingAccess />;
   }

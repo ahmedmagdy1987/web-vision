@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <!-- TEMPORARY text lettermark (no invented symbol). The official Malahi logo
-       asset is required — drop it in public/ and regenerate this favicon. -->
+  <!-- Neutral "M" lettermark favicon. The official Malahi logo
+       (public/malahi-logo.png) is a wide lockup that can't be squared into a
+       legible favicon without cropping; a dedicated square icon is still needed. -->
   <rect width="32" height="32" rx="8" fill="#0d9488"/>
   <text x="16" y="22" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#ffffff" text-anchor="middle">M</text>
 </svg>

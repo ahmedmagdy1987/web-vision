@@ -16,20 +16,26 @@ sign-in / pending-access screens, the favicon (`src/app/icon.svg`), the apple
 touch icon (`src/app/apple-icon.tsx`), the manifest icon and `public/malahi-logo.svg`.
 A grep confirms no `MalahiMark`/`Aperture` references remain.
 
-**Was an official Malahi logo found?** No. I searched the repository, `public/`,
-the home/recovery directory and the Supabase brand assets. The only logos present
-are **client/mockup brand logos** (e.g. the "Malahi Arcade" logo) — these are *not*
-the application's official identity and are deliberately **not** used as the app
-logo. No verified official Malahi app logo exists.
+**Official logo — found and integrated (follow-up).** The temporary text wordmark
+was a stopgap; the owner then supplied the official Malahi logo at
+**`public/malahi-logo.png`** (250×132, RGBA, wide lockup — Arabic "ملاهي" + "Malahi"
+in navy with a teal accent). It is now the permanent application identity, used in
+the **app shell, sign-in / pending-access screens and the loading state**:
 
-**Temporary branding used:** a clean **text-only "Malahi" wordmark** (in the
-Malahi teal) with a "Mockup Generator" subtitle in the shell and auth screens. The
-favicon is a temporary "M" lettermark on teal; the apple icon is a plain teal tile.
-No icon/symbol was invented and no substitute logo was created.
+- Rendered **exactly as supplied** via `next/image` — never redrawn, recolored,
+  distorted or stretched; **transparency and aspect ratio preserved** with
+  `object-contain`; responsive sizing; delivery optimized (no visual change). The
+  **original PNG is untouched** (8847 bytes, unmodified).
+- **Light + dark verified.** In light mode the logo sits bare on the light surface;
+  in **dark mode** it sits on a **neutral white container** for sufficient contrast
+  — the logo itself is **not** recolored.
+- **Favicon / app-icon:** the wide lockup cannot be squared into a legible icon
+  without cropping, so they remain a clean **neutral placeholder** (teal "M" favicon
+  / teal tile) — **a dedicated square official-icon version is still needed.**
+- The official application logo is kept **distinct** from the client logos employees
+  select in the Logo Library for mockup generation.
 
-**Where the official asset goes:** drop the official Malahi logo at
-**`public/malahi-logo.svg`**, then reintroduce it in `src/components/layout/app-logo.tsx`,
-`src/app/icon.svg` and `src/app/apple-icon.tsx`. (A code note marks each location.)
+(The earlier `public/malahi-logo.svg` text placeholder was removed.)
 
 ## 2. Direct upload + visual selection on Home
 
@@ -98,16 +104,19 @@ generation stays separate from the permanent (text wordmark) application identit
 01-home-generator-desktop · 02-home-logo-picker-desktop · 03-home-product-picker-desktop ·
 04-home-location-picker-desktop · 05-logos-library-desktop · 06-products-library-desktop ·
 07-locations-library-desktop · 08-generation-progress-desktop · 09-gallery-desktop ·
-10-home-generator-mobile · 11-home-product-picker-mobile · 12-generation-progress-mobile
+10-home-generator-mobile · 11-home-product-picker-mobile · 12-generation-progress-mobile ·
+13-sign-in-desktop · 14-sign-in-mobile · 15-home-dark-desktop
 
-They show: no invented Malahi symbol (text wordmark), the simple Home workflow,
-direct upload actions for all three asset types, visual picker sheets, no
-Project/Workspace/Identity complexity, real uploaded assets, and desktop + mobile.
+They show: the **official Malahi logo** in the shell, sign-in screens and (on a
+white container) in dark mode; the simple Home workflow; direct upload actions for
+all three asset types; visual picker sheets; no Project/Workspace/Identity
+complexity; real uploaded assets; desktop + mobile.
 
 ## Remaining visual limitations
 
-- **The official Malahi logo asset is still required** — the shell currently uses a
-  temporary text wordmark (swap target: `public/malahi-logo.svg`).
+- **A dedicated square app-icon/favicon version of the Malahi logo is needed** — the
+  supplied wide lockup can't be squared into a legible icon without cropping, so the
+  favicon/apple-icon remain a clean neutral placeholder.
 - **Image generation remains mocked** (`MockImageAdapter`) — no real provider.
 - Legacy Phase ≤3.4 dashboard/Studio/Identity components remain in the tree but are
   no longer rendered; they can be deleted in a follow-up.

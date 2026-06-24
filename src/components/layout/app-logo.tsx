@@ -1,29 +1,36 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 /**
- * Malahi application wordmark — TEXT ONLY (temporary).
+ * Official Malahi application logo (public/malahi-logo.png). Rendered exactly as
+ * supplied — never redrawn, recolored, distorted or stretched. Transparency and
+ * aspect ratio are preserved via `object-contain`; delivery is optimized by
+ * next/image. In dark mode the navy logo is placed on a neutral white container
+ * for sufficient contrast (the logo itself is not recolored).
  *
- * No invented icon/symbol is used. The OFFICIAL Malahi logo asset is required and
- * should be dropped at `public/malahi-logo.svg` (and reintroduced here, in
- * `src/app/icon.svg` and `src/app/apple-icon.tsx`). NOTE: the logos shown inside
- * the Logo Library and generated mockups are the team's *client* brand assets —
- * not the application's official Malahi identity.
+ * NOTE: this is the permanent application identity — distinct from the client
+ * logos employees select inside the Logo Library for mockup generation.
  */
-export function AppLogo({ collapsed = false, className }: { collapsed?: boolean; className?: string }) {
-  if (collapsed) {
-    // Compact text lettermark for the collapsed sidebar / mobile header.
-    return (
-      <span className={cn("text-brand text-xl font-bold tracking-tight", className)} aria-label="Malahi">
-        M
-      </span>
-    );
-  }
+export function MalahiLogo({ className, imgClassName }: { className?: string; imgClassName?: string }) {
   return (
-    <div className={cn("min-w-0 leading-tight", className)}>
-      <p className="text-base font-bold tracking-tight">
-        <span className="text-brand">Malahi</span>
-      </p>
-      <p className="text-muted-foreground truncate text-[11px]">Mockup Generator</p>
-    </div>
+    <span
+      className={cn(
+        "inline-flex items-center justify-center rounded-lg p-1 dark:bg-white dark:p-1.5 dark:shadow-sm dark:ring-1 dark:ring-black/5",
+        className,
+      )}
+    >
+      <Image
+        src="/malahi-logo.png"
+        alt="Malahi"
+        width={250}
+        height={132}
+        priority
+        className={cn("w-auto object-contain", imgClassName ?? "h-7")}
+      />
+    </span>
   );
+}
+
+export function AppLogo({ collapsed = false, className }: { collapsed?: boolean; className?: string }) {
+  return <MalahiLogo className={className} imgClassName={collapsed ? "h-6 max-w-[44px]" : "h-7"} />;
 }
