@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { ChevronDown } from "lucide-react";
 import type { Brand, ImageAsset, Product, ProductDimensions, ProductUsage } from "@/lib/domain";
 import { DIMENSION_UNITS, PRODUCT_USAGE_LABELS } from "@/lib/domain";
 import { productRepository, type ProductInput } from "@/lib/repositories";
@@ -25,8 +26,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { TagInput } from "@/components/common/tag-input";
 import { ImageDropzone } from "@/components/common/image-dropzone";
+import { cn } from "@/lib/utils";
 
 const USAGE_VALUES: ProductUsage[] = ["indoor", "outdoor", "both"];
 
@@ -36,7 +37,7 @@ interface ProductFormDialogProps {
   /** When provided the dialog edits this product, otherwise creates a new one. */
   product?: Product | null;
   brands: Brand[];
-  /** Brand to preselect when creating a new product. */
+  /** Logo/brand to assign internally when creating a new product. */
   defaultBrandId?: string;
 }
 
@@ -66,6 +67,13 @@ function parseNumber(value: string): number | undefined {
   return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
+/**
+ * Radically simplified product capture. The primary flow is only Name + Main
+ * image (both required) and optional reference images. Everything else
+ * (category, usage, dimensions, description, preservation) lives in a collapsed
+ * "Advanced details" section. The owning logo/brand is assigned internally and is
+ * never shown — the employee does not pick a logo when uploading a product.
+ */
 export function ProductFormDialog({
   open,
   onOpenChange,
@@ -75,20 +83,14 @@ export function ProductFormDialog({
 }: ProductFormDialogProps) {
   const isEdit = Boolean(product);
   const activeBrands = React.useMemo(() => brands.filter((b) => b.status === "active"), [brands]);
-  const brandOptions = React.useMemo(() => {
-    // Always include the product's own brand even if archived, so editing works.
-    if (product && !activeBrands.some((b) => b.id === product.brandId)) {
-      const own = brands.find((b) => b.id === product.brandId);
-      if (own) return [own, ...activeBrands];
-    }
-    return activeBrands;
-  }, [activeBrands, brands, product]);
+
+  // Internal (hidden) logo/brand assignment.
+  const resolvedBrandId = product?.brandId ?? defaultBrandId ?? activeBrands[0]?.id ?? "";
 
   // Form state
   const [name, setName] = React.useState("");
-  const [brandId, setBrandId] = React.useState("");
   const [category, setCategory] = React.useState("");
-  const [tags, setTags] = React.useState<string[]>([]);
+  const [tags, setTags] = React.useState<string[]>([]); // preserved on edit; not shown
   const [description, setDescription] = React.useState("");
   const [dimensions, setDimensions] = React.useState<DimensionDraft>(EMPTY_DIMENSIONS);
   const [usage, setUsage] = React.useState<ProductUsage>("indoor");
@@ -96,16 +98,15 @@ export function ProductFormDialog({
   const [referenceImages, setReferenceImages] = React.useState<ImageAsset[]>([]);
   const [preservation, setPreservation] = React.useState("");
   const [submitted, setSubmitted] = React.useState(false);
+  const [advancedOpen, setAdvancedOpen] = React.useState(false);
 
   // Reset the form when the dialog opens or switches target entity.
-  // Adjust-during-render pattern (no setState-in-effect).
   const formKey = `${open ? "open" : "closed"}:${product?.id ?? "new"}:${product?.updatedAt ?? ""}`;
   const [lastKey, setLastKey] = React.useState<string | null>(null);
   if (lastKey !== formKey) {
     setLastKey(formKey);
     if (open) {
       setName(product?.name ?? "");
-      setBrandId(product?.brandId ?? defaultBrandId ?? activeBrands[0]?.id ?? "");
       setCategory(product?.category ?? "");
       setTags(product?.tags ?? []);
       setDescription(product?.description ?? "");
@@ -114,16 +115,16 @@ export function ProductFormDialog({
       setMainImage(product?.mainImage ? [product.mainImage] : []);
       setReferenceImages(product?.referenceImages ?? []);
       setPreservation(product?.preservationInstructions ?? "");
+      setAdvancedOpen(false);
     }
     setSubmitted(false);
   }
 
   const trimmedName = name.trim();
-  const trimmedCategory = category.trim();
   const nameError = trimmedName.length === 0;
-  const brandError = brandId.length === 0;
-  const categoryError = trimmedCategory.length === 0;
-  const isValid = !nameError && !brandError && !categoryError;
+  const mainImageError = mainImage.length === 0;
+  const noBrands = activeBrands.length === 0 && !product;
+  const isValid = !nameError && !mainImageError && resolvedBrandId.length > 0;
 
   const buildDimensions = (): ProductDimensions | undefined => {
     const width = parseNumber(dimensions.width);
@@ -137,14 +138,14 @@ export function ProductFormDialog({
     e.preventDefault();
     setSubmitted(true);
     if (!isValid) {
-      toast.error("Please fill in the required fields.");
+      toast.error(mainImageError ? "Add a main product image." : "Enter a product name.");
       return;
     }
 
     const input: ProductInput = {
-      brandId,
+      brandId: resolvedBrandId,
       name: trimmedName,
-      category: trimmedCategory,
+      category: category.trim() || "Uncategorized",
       tags,
       description: description.trim() || undefined,
       dimensions: buildDimensions(),
@@ -164,31 +165,37 @@ export function ProductFormDialog({
     onOpenChange(false);
   };
 
-  const noBrands = activeBrands.length === 0 && !product;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent
+        className={cn(
+          "flex flex-col gap-0 p-0 sm:max-w-lg sm:max-h-[92dvh]",
+          // Full-screen sheet on small mobile screens.
+          "max-sm:inset-0 max-sm:h-dvh max-sm:max-h-dvh max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0",
+        )}
+      >
+        <DialogHeader className="border-b px-5 py-4">
           <DialogTitle>{isEdit ? "Edit product" : "Add product"}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Update the product details, imagery and preservation rules."
-              : "Capture a product so it can be placed into generated scenes."}
+              ? "Update the product name and imagery."
+              : "Add a product image so it can be placed into generated scenes."}
           </DialogDescription>
         </DialogHeader>
 
         {noBrands ? (
-          <p className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
-            Add a logo first — every product belongs to a logo.
-          </p>
+          <div className="px-5 py-8">
+            <p className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
+              Add a logo first — products are stored under your Malahi library.
+            </p>
+          </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {/* Name */}
-              <div className="space-y-1.5 sm:col-span-2">
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col" noValidate>
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
+              {/* Name (required) */}
+              <div className="space-y-1.5">
                 <Label htmlFor="product-name">
-                  Name <span className="text-destructive">*</span>
+                  Product name <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="product-name"
@@ -201,172 +208,29 @@ export function ProductFormDialog({
                 {submitted && nameError && <p className="text-destructive text-xs">Name is required.</p>}
               </div>
 
-              {/* Brand */}
+              {/* Main image (required, near the top) */}
               <div className="space-y-1.5">
-                <Label htmlFor="product-brand">
-                  Logo <span className="text-destructive">*</span>
+                <Label>
+                  Main product image <span className="text-destructive">*</span>
                 </Label>
-                <Select value={brandId} onValueChange={setBrandId}>
-                  <SelectTrigger id="product-brand" aria-invalid={submitted && brandError}>
-                    <SelectValue placeholder="Select a logo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {brandOptions.map((brand) => (
-                      <SelectItem key={brand.id} value={brand.id}>
-                        <span className="flex items-center gap-2">
-                          <span
-                            className="size-2.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: brand.accentColor }}
-                          />
-                          {brand.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {submitted && brandError && <p className="text-destructive text-xs">Logo is required.</p>}
-              </div>
-
-              {/* Category */}
-              <div className="space-y-1.5">
-                <Label htmlFor="product-category">
-                  Category <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="product-category"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  placeholder="e.g. Seating"
-                  aria-invalid={submitted && categoryError}
-                />
-                {submitted && categoryError && (
-                  <p className="text-destructive text-xs">Category is required.</p>
-                )}
-              </div>
-
-              {/* Usage */}
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Usage</Label>
-                <ToggleGroup
-                  type="single"
-                  value={usage}
-                  onValueChange={(value) => {
-                    if (value) setUsage(value as ProductUsage);
-                  }}
-                  className="w-full justify-start"
-                >
-                  {USAGE_VALUES.map((value) => (
-                    <ToggleGroupItem key={value} value={value} aria-label={PRODUCT_USAGE_LABELS[value]}>
-                      {PRODUCT_USAGE_LABELS[value]}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-              </div>
-
-              {/* Tags */}
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="product-tags">Tags</Label>
-                <TagInput id="product-tags" value={tags} onChange={setTags} />
-              </div>
-
-              {/* Description */}
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="product-description">Description</Label>
-                <Textarea
-                  id="product-description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Materials, finish, notable details…"
-                  rows={3}
-                />
-              </div>
-
-              {/* Dimensions */}
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Dimensions</Label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="dim-width" className="text-muted-foreground text-xs font-normal">
-                      Width
-                    </Label>
-                    <Input
-                      id="dim-width"
-                      type="number"
-                      min={0}
-                      inputMode="decimal"
-                      value={dimensions.width}
-                      onChange={(e) => setDimensions((d) => ({ ...d, width: e.target.value }))}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="dim-height" className="text-muted-foreground text-xs font-normal">
-                      Height
-                    </Label>
-                    <Input
-                      id="dim-height"
-                      type="number"
-                      min={0}
-                      inputMode="decimal"
-                      value={dimensions.height}
-                      onChange={(e) => setDimensions((d) => ({ ...d, height: e.target.value }))}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="dim-depth" className="text-muted-foreground text-xs font-normal">
-                      Depth
-                    </Label>
-                    <Input
-                      id="dim-depth"
-                      type="number"
-                      min={0}
-                      inputMode="decimal"
-                      value={dimensions.depth}
-                      onChange={(e) => setDimensions((d) => ({ ...d, depth: e.target.value }))}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="dim-unit" className="text-muted-foreground text-xs font-normal">
-                      Unit
-                    </Label>
-                    <Select
-                      value={dimensions.unit}
-                      onValueChange={(value) =>
-                        setDimensions((d) => ({ ...d, unit: value as ProductDimensions["unit"] }))
-                      }
-                    >
-                      <SelectTrigger id="dim-unit">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DIMENSION_UNITS.map((unit) => (
-                          <SelectItem key={unit} value={unit}>
-                            {unit}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Main image */}
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Main image</Label>
                 <ImageDropzone
                   value={mainImage}
                   onChange={setMainImage}
                   multiple={false}
-                  label="Drop the hero product image"
-                  hint="One clean, well-lit shot · PNG, JPG, WEBP, SVG"
+                  label="Drop the main product image"
+                  hint="One clean, well-lit shot · PNG, JPG, WEBP"
                 />
+                {submitted && mainImageError && (
+                  <p className="text-destructive text-xs">A main product image is required.</p>
+                )}
               </div>
 
-              {/* Reference images */}
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Reference images</Label>
+              {/* Additional references (optional) */}
+              <div className="space-y-1.5">
+                <Label>
+                  Additional reference images{" "}
+                  <span className="text-muted-foreground text-xs font-normal">(optional)</span>
+                </Label>
                 <ImageDropzone
                   value={referenceImages}
                   onChange={setReferenceImages}
@@ -376,26 +240,129 @@ export function ProductFormDialog({
                 />
               </div>
 
-              {/* Preservation */}
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="product-preservation">Preservation instructions</Label>
-                <Textarea
-                  id="product-preservation"
-                  value={preservation}
-                  onChange={(e) => setPreservation(e.target.value)}
-                  placeholder="What must stay exact in generated images (color, logo, proportions)…"
-                  rows={3}
-                />
+              {/* Advanced details — optional (collapsed) */}
+              <div className="rounded-lg border">
+                <button
+                  type="button"
+                  onClick={() => setAdvancedOpen((o) => !o)}
+                  aria-expanded={advancedOpen}
+                  className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                >
+                  Advanced details — optional
+                  <ChevronDown
+                    className={cn("text-muted-foreground size-4 shrink-0 transition-transform", advancedOpen && "rotate-180")}
+                  />
+                </button>
+                {advancedOpen && (
+                  <div className="space-y-4 border-t px-3 py-4">
+                    {/* Category */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="product-category">Category</Label>
+                      <Input
+                        id="product-category"
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        placeholder="e.g. Seating"
+                      />
+                    </div>
+
+                    {/* Usage */}
+                    <div className="space-y-1.5">
+                      <Label>Usage</Label>
+                      <ToggleGroup
+                        type="single"
+                        value={usage}
+                        onValueChange={(value) => {
+                          if (value) setUsage(value as ProductUsage);
+                        }}
+                        className="w-full justify-start"
+                      >
+                        {USAGE_VALUES.map((value) => (
+                          <ToggleGroupItem key={value} value={value} aria-label={PRODUCT_USAGE_LABELS[value]}>
+                            {PRODUCT_USAGE_LABELS[value]}
+                          </ToggleGroupItem>
+                        ))}
+                      </ToggleGroup>
+                    </div>
+
+                    {/* Dimensions */}
+                    <div className="space-y-1.5">
+                      <Label>Dimensions</Label>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {(["width", "height", "depth"] as const).map((dim) => (
+                          <div key={dim} className="space-y-1">
+                            <Label htmlFor={`dim-${dim}`} className="text-muted-foreground text-xs font-normal capitalize">
+                              {dim}
+                            </Label>
+                            <Input
+                              id={`dim-${dim}`}
+                              type="number"
+                              min={0}
+                              inputMode="decimal"
+                              value={dimensions[dim]}
+                              onChange={(e) => setDimensions((d) => ({ ...d, [dim]: e.target.value }))}
+                              placeholder="0"
+                            />
+                          </div>
+                        ))}
+                        <div className="space-y-1">
+                          <Label htmlFor="dim-unit" className="text-muted-foreground text-xs font-normal">
+                            Unit
+                          </Label>
+                          <Select
+                            value={dimensions.unit}
+                            onValueChange={(value) =>
+                              setDimensions((d) => ({ ...d, unit: value as ProductDimensions["unit"] }))
+                            }
+                          >
+                            <SelectTrigger id="dim-unit">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {DIMENSION_UNITS.map((unit) => (
+                                <SelectItem key={unit} value={unit}>
+                                  {unit}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="product-description">Description</Label>
+                      <Textarea
+                        id="product-description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Materials, finish, notable details…"
+                        rows={3}
+                      />
+                    </div>
+
+                    {/* Preservation notes */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="product-preservation">Preservation notes</Label>
+                      <Textarea
+                        id="product-preservation"
+                        value={preservation}
+                        onChange={(e) => setPreservation(e.target.value)}
+                        placeholder="What must stay exact in generated images (color, logo, proportions)…"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="bg-background border-t px-5 py-4">
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitted && !isValid}>
-                {isEdit ? "Save changes" : "Add product"}
-              </Button>
+              <Button type="submit">{isEdit ? "Save changes" : "Save product"}</Button>
             </DialogFooter>
           </form>
         )}

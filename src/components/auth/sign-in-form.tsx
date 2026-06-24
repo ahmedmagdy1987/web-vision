@@ -50,11 +50,8 @@ export function SignInForm() {
   }
 
   return (
-    <AuthCard
-      title="Sign in"
-      description="Sign in to your Malahi account."
-      footer="Malahi is an internal, invite-only tool."
-    >
+    <AuthCard title="Sign in" description="Sign in to your Malahi account.">
+
       {linkExpired && (
         <div
           role="alert"

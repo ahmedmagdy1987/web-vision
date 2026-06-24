@@ -34,7 +34,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return (
         <FullScreen>
           <div className="flex flex-col items-center gap-3">
-            <MalahiLogo imgClassName="h-8" />
+            <span className="inline-flex rounded-lg p-2 dark:bg-white">
+              <MalahiLogo imgClassName="h-8" />
+            </span>
             <span>Loading…</span>
           </div>
         </FullScreen>

@@ -203,6 +203,36 @@
     scrollbar-color: var(--border) transparent;
   }
 
+  /* Restrained Malahi scrollbar system — applied app-wide (main page, dialogs,
+     sheets, picker panels, text areas). Firefox uses scrollbar-width/color;
+     Chromium/WebKit uses the pseudo-elements. Slim but usable, rounded thumb,
+     neutral track, Malahi teal on hover/active. Light + dark adapt via tokens.
+     Scrollbars are never fully hidden. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover,
+  *::-webkit-scrollbar-thumb:active {
+    background-color: var(--brand);
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
   /* Repeating diagonal hatch used for empty/placeholder canvases. */
   .bg-grid {
     background-image: radial-gradient(

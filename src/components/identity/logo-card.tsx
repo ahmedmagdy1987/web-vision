@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AssetImage } from "@/components/common/asset-image";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { LogoDeleteDialog } from "@/components/logos/logo-delete-dialog";
 import { LogoEditDialog } from "./logo-edit-dialog";
 
 interface LogoCardProps {
@@ -31,7 +31,7 @@ interface LogoCardProps {
 }
 
 export function LogoCard({ logo, brandId, isDefault, name }: LogoCardProps) {
-  const [confirmRemove, setConfirmRemove] = React.useState(false);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const replaceRef = React.useRef<HTMLInputElement>(null);
 
@@ -46,12 +46,6 @@ export function LogoCard({ logo, brandId, isDefault, name }: LogoCardProps) {
     const next = archived ? "active" : "archived";
     brandRepository.setLogoStatus(brandId, logo.id, next);
     toast.success(`Logo ${next === "active" ? "activated" : "archived"}.`);
-  };
-
-  const handleRemove = () => {
-    brandRepository.removeLogo(brandId, logo.id);
-    toast.success("Logo removed.");
-    setConfirmRemove(false);
   };
 
   const handleReplace = async (fileList: FileList | null) => {
@@ -118,9 +112,9 @@ export function LogoCard({ logo, brandId, isDefault, name }: LogoCardProps) {
               {archived ? "Activate" : "Archive"}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={() => setConfirmRemove(true)}>
+            <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
               <Trash2 />
-              Remove
+              Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -191,14 +185,12 @@ export function LogoCard({ logo, brandId, isDefault, name }: LogoCardProps) {
 
       <LogoEditDialog open={editOpen} onOpenChange={setEditOpen} logo={logo} brandId={brandId} />
 
-      <ConfirmDialog
-        open={confirmRemove}
-        onOpenChange={setConfirmRemove}
-        title="Remove this logo?"
-        description={`The ${LOGO_KIND_LABELS[logo.kind].toLowerCase()} logo will be permanently removed from this brand.`}
-        confirmLabel="Remove"
-        destructive
-        onConfirm={handleRemove}
+      <LogoDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        logo={logo}
+        brandId={brandId}
+        name={name ?? LOGO_KIND_LABELS[logo.kind]}
       />
     </li>
   );

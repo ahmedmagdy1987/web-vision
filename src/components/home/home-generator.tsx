@@ -302,7 +302,7 @@ export function HomeGenerator() {
             {selectedLocation ? (
               <div className="space-y-2">
                 <div className="overflow-hidden rounded-lg border">
-                  <AspectFrame ratio="16:9" className="bg-muted">
+                  <AspectFrame ratio="1:1" className="bg-muted">
                     <AssetImage
                       src={mainLocationImageUrl ?? undefined}
                       alt={selectedLocation.name}
@@ -426,7 +426,12 @@ export function HomeGenerator() {
           const o = logoOptions.find((x) => x.logo.id === id);
           if (o) onPickLogo(o.brand.id, o.logo.id);
         }}
-        onUpload={() => setLogoUpload(true)}
+        onUpload={() => {
+          // Close the picker sheet before opening the upload dialog so only one
+          // modal layer is mounted (avoids the aria-hidden focus warning).
+          setLogoPicker(false);
+          setLogoUpload(true);
+        }}
         uploadLabel="Upload logo"
         searchPlaceholder="Search logos…"
         emptyIcon={ImageIcon}
@@ -442,7 +447,10 @@ export function HomeGenerator() {
         selectedIds={selectedProductIds}
         multi
         onPick={(id) => dispatch({ type: "toggle-product", productId: id })}
-        onUpload={() => setProductUpload(true)}
+        onUpload={() => {
+          setProductPicker(false);
+          setProductUpload(true);
+        }}
         uploadLabel="Upload product"
         searchPlaceholder="Search products…"
         emptyIcon={Package}
@@ -456,7 +464,10 @@ export function HomeGenerator() {
         items={locationItems}
         selectedIds={selectedLocation ? [selectedLocation.id] : []}
         onPick={(id) => dispatch({ type: "set-location", locationId: id })}
-        onUpload={() => setLocationUpload(true)}
+        onUpload={() => {
+          setLocationPicker(false);
+          setLocationUpload(true);
+        }}
         uploadLabel="Upload location"
         searchPlaceholder="Search locations…"
         emptyIcon={MapPin}

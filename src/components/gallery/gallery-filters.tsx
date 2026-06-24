@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, RotateCcw, Star } from "lucide-react";
+import { RotateCcw, Star } from "lucide-react";
 import type { Brand, ID, Location, Product, Project, ResultReview } from "@/lib/domain";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -156,15 +156,8 @@ export function GalleryFilters({ brands, products, locations, filters, onChange 
             Sort
           </Label>
           <Select value={filters.sort} onValueChange={(v) => patch({ sort: v as GallerySort })}>
-            <SelectTrigger id="filter-sort" size="sm" className="w-[140px]" aria-label="Sort results">
-              <span className="flex items-center gap-2">
-                {filters.sort === "newest" ? (
-                  <ArrowDownWideNarrow className="size-4" />
-                ) : (
-                  <ArrowUpWideNarrow className="size-4" />
-                )}
-                <SelectValue />
-              </span>
+            <SelectTrigger id="filter-sort" size="sm" className="w-[150px]" aria-label="Sort results">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="newest">Newest first</SelectItem>

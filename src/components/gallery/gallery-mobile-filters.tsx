@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, X } from "lucide-react";
 import type { Brand, Location, Product, Project } from "@/lib/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -123,11 +123,6 @@ export function GalleryMobileFilters({ projects, brands, products, locations, fi
 
         <Select value={filters.sort} onValueChange={(v) => patch({ sort: v as GallerySort })}>
           <SelectTrigger size="sm" className="ml-auto w-auto gap-1.5" aria-label="Sort results">
-            {filters.sort === "newest" ? (
-              <ArrowDownWideNarrow className="size-4" />
-            ) : (
-              <ArrowUpWideNarrow className="size-4" />
-            )}
             <span className="text-xs">{filters.sort === "newest" ? "Newest" : "Oldest"}</span>
           </SelectTrigger>
           <SelectContent>

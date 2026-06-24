@@ -9,6 +9,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // The `server-only` marker throws when imported outside the react-server
+      // condition; stub it so server modules can be unit-tested in node.
+      "server-only": path.resolve(__dirname, "./tests/stubs/empty-module.ts"),
     },
   },
 });

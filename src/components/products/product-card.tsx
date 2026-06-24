@@ -147,7 +147,7 @@ export function ProductCard({
       onClick={() => onToggleSelect(product.id)}
     >
       <div className="relative">
-        <AspectFrame ratio="4:3" className="bg-muted">
+        <AspectFrame ratio="1:1" className="bg-muted">
           <AssetImage
             src={product.mainImage?.url}
             alt={product.name}

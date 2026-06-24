@@ -6,9 +6,11 @@ import type {
   ResultSnapshot,
 } from "@/lib/domain";
 import { newId, nowIso } from "@/lib/ids";
+import { productRepository } from "@/lib/repositories";
 import { jobRepository } from "@/lib/repositories/job-repository";
 import { resultRepository } from "@/lib/repositories/result-repository";
-import { getImageAdapter } from "./image-adapter";
+import { getImageAdapter, type ImageReference } from "./image-adapter";
+import { getReferenceLimit } from "./image-adapter/provider-config";
 import { GenerationValidationError, validateGenerationRequest } from "./validation";
 
 export interface StartGenerationInput {
@@ -20,17 +22,55 @@ export interface StartGenerationInput {
   signal?: AbortSignal;
 }
 
-function toImageAsset(url: string, name: string, width: number, height: number): ImageAsset {
+function toImageAsset(
+  url: string,
+  name: string,
+  width: number,
+  height: number,
+  mimeType: string,
+): ImageAsset {
   return {
     id: newId("img"),
     url,
     name,
-    mimeType: "image/svg+xml",
+    mimeType,
     size: url.length,
     width,
     height,
     createdAt: nowIso(),
   };
+}
+
+/**
+ * Collect the input reference images for image-edit providers: the base location
+ * scene, each selected product's main image, then the logo. Bounded by the
+ * provider reference limit to control cost/size. The mock adapter ignores these.
+ */
+function buildReferenceImages(snapshot: ResultSnapshot): ImageReference[] {
+  const refs: ImageReference[] = [];
+  if (snapshot.locationImageUrl) {
+    refs.push({
+      role: "location",
+      url: snapshot.locationImageUrl,
+      mimeType: "image/png",
+      name: snapshot.locationName ?? "location",
+    });
+  }
+  for (const id of snapshot.productIds) {
+    const product = productRepository.getById(id);
+    if (product?.mainImage?.url) {
+      refs.push({
+        role: "product",
+        url: product.mainImage.url,
+        mimeType: product.mainImage.mimeType,
+        name: product.name,
+      });
+    }
+  }
+  if (snapshot.logoUrl) {
+    refs.push({ role: "logo", url: snapshot.logoUrl, mimeType: "image/png", name: snapshot.brandName });
+  }
+  return refs.slice(0, getReferenceLimit());
 }
 
 /**
@@ -72,6 +112,7 @@ export async function startGeneration(input: StartGenerationInput): Promise<Gene
         brandAccent: snapshot.brandAccent,
         label: snapshot.brandName,
         sublabel: snapshot.locationName,
+        referenceImages: buildReferenceImages(snapshot),
       },
       (progress) => {
         const updated = jobRepository.setProgress(queued.id, progress);
@@ -87,7 +128,13 @@ export async function startGeneration(input: StartGenerationInput): Promise<Gene
         jobId: queued.id,
         requestId: request.id,
         projectId: request.projectId,
-        image: toImageAsset(image.url, `${snapshot.brandName} mockup ${index + 1}`, image.width, image.height),
+        image: toImageAsset(
+          image.url,
+          `${snapshot.brandName} mockup ${index + 1}`,
+          image.width,
+          image.height,
+          image.mimeType,
+        ),
         index,
         seed: image.seed,
         review: "draft",

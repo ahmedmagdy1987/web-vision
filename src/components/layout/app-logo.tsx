@@ -5,20 +5,18 @@ import { cn } from "@/lib/utils";
  * Official Malahi application logo (public/malahi-logo.png). Rendered exactly as
  * supplied — never redrawn, recolored, distorted or stretched. Transparency and
  * aspect ratio are preserved via `object-contain`; delivery is optimized by
- * next/image. In dark mode the navy logo is placed on a neutral white container
- * for sufficient contrast (the logo itself is not recolored).
+ * next/image.
+ *
+ * The navy PNG is rendered as-is (no recolor / no CSS filter). For dark-mode
+ * contrast the surrounding surface is lightened by the layout (an integrated
+ * light brand-header band / panel), NOT a floating white pill around the logo.
  *
  * NOTE: this is the permanent application identity — distinct from the client
  * logos employees select inside the Logo Library for mockup generation.
  */
 export function MalahiLogo({ className, imgClassName }: { className?: string; imgClassName?: string }) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center justify-center rounded-lg p-1 dark:bg-white dark:p-1.5 dark:shadow-sm dark:ring-1 dark:ring-black/5",
-        className,
-      )}
-    >
+    <span className={cn("inline-flex items-center justify-center", className)}>
       <Image
         src="/malahi-logo.png"
         alt="Malahi"

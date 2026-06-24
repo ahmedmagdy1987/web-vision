@@ -28,7 +28,7 @@ export function LocationCard({ location, projectName, onEdit, onUseInStudio }: L
   return (
     <Card className="group relative gap-0 overflow-hidden p-0 transition-all hover:-translate-y-0.5 hover:border-brand-border hover:shadow-md">
       <div className="relative">
-        <AspectFrame ratio="4:3" className="bg-muted">
+        <AspectFrame ratio="1:1" className="bg-muted">
           <AssetImage
             src={main?.url}
             alt={location.name}

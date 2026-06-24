@@ -40,7 +40,9 @@ export function ResultCard({ result }: ResultCardProps) {
       )}
     >
       <div className="relative">
-        <AspectFrame ratio={snapshot.settings.aspectRatio} className="bg-muted">
+        {/* Gallery cards stay square even when the result is portrait/landscape;
+            the full uncropped image is shown on the detail page. */}
+        <AspectFrame ratio="1:1" className="bg-muted">
           <AssetImage
             src={result.image.url}
             alt={`${snapshot.brandName} mockup`}
