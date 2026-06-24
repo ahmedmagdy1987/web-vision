@@ -26,9 +26,11 @@ interface LogoCardProps {
   logo: LogoAsset;
   brandId: string;
   isDefault: boolean;
+  /** Optional logo name shown on the card (used by the flat Logo Library). */
+  name?: string;
 }
 
-export function LogoCard({ logo, brandId, isDefault }: LogoCardProps) {
+export function LogoCard({ logo, brandId, isDefault, name }: LogoCardProps) {
   const [confirmRemove, setConfirmRemove] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const replaceRef = React.useRef<HTMLInputElement>(null);
@@ -125,6 +127,11 @@ export function LogoCard({ logo, brandId, isDefault }: LogoCardProps) {
       </div>
 
       <div className="flex flex-1 flex-col gap-2 p-3">
+        {name && (
+          <p className="truncate text-sm font-medium" title={name}>
+            {name}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant="outline">{LOGO_KIND_LABELS[logo.kind]}</Badge>
           {archived ? (

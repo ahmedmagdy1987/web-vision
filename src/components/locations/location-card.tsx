@@ -46,7 +46,7 @@ export function LocationCard({ location, projectName, onEdit, onUseInStudio }: L
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => onUseInStudio(location)}>
                 <Sparkles />
-                Use in Studio
+                Use in mockup
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => onEdit(location)}>
                 <Pencil />

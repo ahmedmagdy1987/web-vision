@@ -63,7 +63,7 @@ export function ProductCard({
       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
         <DropdownMenuItem onSelect={() => onOpenInStudio(product)}>
           <Sparkles />
-          Open in Studio
+          Use in mockup
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onEdit(product)}>
           <Pencil />

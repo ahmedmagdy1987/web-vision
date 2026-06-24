@@ -1,51 +1,38 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ImageOff, RotateCcw, Sparkles, TriangleAlert } from "lucide-react";
-import type {
-  AspectRatio,
-  Brand,
-  ControlOption,
-  GenerationJob,
-  Location,
-  LogoAsset,
-  Placement,
-  ResultSnapshot,
-  UploadedAssetRef,
-} from "@/lib/domain";
+import { ImageIcon, MapPin, Package, Plus, RotateCcw, Sparkles, TriangleAlert, UploadCloud, X } from "lucide-react";
+import type { AspectRatio, ControlOption, GenerationJob, Placement, ResultSnapshot } from "@/lib/domain";
 import { VISUAL_STYLE_OPTIONS } from "@/lib/domain";
 import { useBrands, useLocations, useProducts } from "@/lib/hooks";
-import { locationRepository } from "@/lib/repositories";
 import { buildGenerationRequest, type ComposeInput } from "@/lib/services/instruction-composer";
 import { startGeneration } from "@/lib/services/generation-service";
 import { validateGenerationRequest } from "@/lib/services/validation";
 import { studioPrefill, type StudioPrefill } from "@/lib/store/studio-draft";
-import { nowIso } from "@/lib/ids";
 import { AssetImage } from "@/components/common/asset-image";
+import { AspectFrame } from "@/components/common/aspect-frame";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/sonner";
-import { cn } from "@/lib/utils";
-import { CanvasPreview } from "@/components/studio/canvas-preview";
-import { ProductPicker } from "@/components/studio/product-picker";
-import { LocationPicker } from "@/components/studio/location-picker";
 import { ControlField, SegmentedControl, SettingSelect } from "@/components/studio/control-primitives";
+import { GeneratingCanvas } from "@/components/studio/generating-canvas";
 import { createInitialState, studioReducer } from "@/components/studio/studio-state";
+import { ProductFormDialog } from "@/components/products/product-form-dialog";
+import { LocationFormDialog } from "@/components/locations/location-form-dialog";
+import { AssetPickerSheet, type PickerItem } from "./asset-picker-sheet";
+import { LogoUploadDialog } from "./logo-upload-dialog";
 
-// Intentionally limited employee-facing controls. The composer expands each of
-// these into sophisticated, provider-ready instructions behind the scenes.
+// Intentionally limited employee-facing controls; the composer expands them.
 const POSITION_OPTIONS: ControlOption<Placement>[] = [
   { value: "auto", label: "Auto" },
   { value: "center", label: "Center" },
   { value: "left", label: "Left" },
   { value: "right", label: "Right" },
 ];
-
 const ASPECT_OPTIONS: ControlOption<AspectRatio>[] = [
   { value: "4:5", label: "Portrait" },
   { value: "1:1", label: "Square" },
@@ -53,7 +40,6 @@ const ASPECT_OPTIONS: ControlOption<AspectRatio>[] = [
   { value: "9:16", label: "Story" },
 ];
 
-// One-shot prefill handoff (from Gallery "regenerate", Products/Locations "use").
 let prefillConsumed = false;
 function takePrefillOnce(): StudioPrefill | null {
   if (prefillConsumed) return null;
@@ -61,65 +47,8 @@ function takePrefillOnce(): StudioPrefill | null {
   return studioPrefill.consume();
 }
 
-interface LogoOption {
-  brand: Brand;
-  logo: LogoAsset;
-}
-
-/** Flat logo library across all active brands — employee picks a logo directly. */
-function LogoChoice({
-  logos,
-  value,
-  onPick,
-}: {
-  logos: LogoOption[];
-  value: string | null;
-  onPick: (brandId: string, logoId: string) => void;
-}) {
-  if (logos.length === 0) {
-    return (
-      <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-lg border border-dashed px-3 py-6 text-center text-sm">
-        <ImageOff className="size-5" />
-        <span>
-          No logos yet.{" "}
-          <Link href="/identity" className="text-brand underline-offset-2 hover:underline">
-            Add a logo
-          </Link>
-          .
-        </span>
-      </div>
-    );
-  }
-  return (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-      {logos.map(({ brand, logo }) => {
-        const selected = logo.id === value;
-        return (
-          <button
-            key={logo.id}
-            type="button"
-            onClick={() => onPick(brand.id, logo.id)}
-            aria-pressed={selected}
-            aria-label={`${brand.name} logo`}
-            className={cn(
-              "relative flex flex-col items-center gap-1 rounded-lg border p-2 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
-              selected ? "border-brand bg-brand-subtle" : "border-border hover:border-brand-border",
-            )}
-          >
-            <span className="bg-card flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border">
-              <AssetImage src={logo.asset.url} alt="" className="size-full object-contain p-1.5" />
-            </span>
-            <span className="w-full truncate text-center text-[10px] font-medium">{brand.name}</span>
-            {selected && (
-              <span className="bg-brand text-brand-foreground absolute -right-1.5 -top-1.5 rounded-full p-0.5">
-                <Check className="size-3" />
-              </span>
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <Label className="text-sm font-semibold">{children}</Label>;
 }
 
 export function HomeGenerator() {
@@ -131,18 +60,24 @@ export function HomeGenerator() {
   const [prefill] = React.useState(takePrefillOnce);
   const [state, dispatch] = React.useReducer(studioReducer, prefill, (p) => {
     const s = createInitialState(p);
-    // One mockup per click by default (hidden control).
-    return { ...s, settings: { ...s.settings, outputCount: p?.settings?.outputCount ?? 1 } };
+    return { ...s, locationMode: "existing" as const, settings: { ...s.settings, outputCount: p?.settings?.outputCount ?? 1 } };
   });
   const [job, setJob] = React.useState<GenerationJob | null>(null);
   const [generating, setGenerating] = React.useState(false);
+
+  const [logoPicker, setLogoPicker] = React.useState(false);
+  const [productPicker, setProductPicker] = React.useState(false);
+  const [locationPicker, setLocationPicker] = React.useState(false);
+  const [logoUpload, setLogoUpload] = React.useState(false);
+  const [productUpload, setProductUpload] = React.useState(false);
+  const [locationUpload, setLocationUpload] = React.useState(false);
 
   React.useEffect(() => {
     prefillConsumed = false;
   }, [prefill]);
 
-  // Flat logo library across all active Malahi brands (no project gating).
-  const logoOptions = React.useMemo<LogoOption[]>(
+  // Flat logo library across all active brands (no project gating).
+  const logoOptions = React.useMemo(
     () =>
       brands
         .filter((b) => b.status === "active")
@@ -152,69 +87,35 @@ export function HomeGenerator() {
 
   const brand = brands.find((b) => b.id === state.brandId) ?? null;
   const logo = brand?.logos.find((l) => l.id === state.logoId && l.status === "active") ?? null;
-  // All active products of the chosen logo's brand — relations preserved, project gating removed.
   const brandProducts = brand ? products.filter((p) => p.brandId === brand.id && p.status === "active") : [];
   const selectedProducts = brandProducts.filter((p) => state.productIds.includes(p.id));
   const selectedProductIds = selectedProducts.map((p) => p.id);
 
   const selectedLocation = locations.find((l) => l.id === state.locationId) ?? null;
-
-  // Resolve the location + main image used for preview/compose (existing or uploaded).
-  let composeLocation: Location | undefined;
-  let mainLocationImageUrl: string | null = null;
-  let mainLocationImageId: string | undefined;
-  if (state.locationMode === "existing" && selectedLocation) {
-    const main =
-      selectedLocation.images.find((i) => i.id === (state.mainLocationImageId ?? selectedLocation.mainImageId)) ??
-      selectedLocation.images[0];
-    composeLocation = selectedLocation;
-    mainLocationImageUrl = main?.url ?? null;
-    mainLocationImageId = main?.id;
-  } else if (state.locationMode === "new" && state.newLocation.images.length > 0) {
-    const nl = state.newLocation;
-    const main = nl.images.find((i) => i.id === nl.mainImageId) ?? nl.images[0];
-    composeLocation = {
-      id: "",
-      name: nl.name || "Untitled location",
-      brandId: brand?.id,
-      usage: nl.usage,
-      images: nl.images,
-      mainImageId: main?.id,
-      description: nl.description || undefined,
-      preservationInstructions: nl.preservationInstructions || undefined,
-      saved: false,
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-    };
-    mainLocationImageUrl = main?.url ?? null;
-    mainLocationImageId = main?.id;
-  }
-  const mainLocationImage = composeLocation?.images.find((i) => i.id === mainLocationImageId);
+  const mainLocationImage = selectedLocation
+    ? selectedLocation.images.find((i) => i.id === (state.mainLocationImageId ?? selectedLocation.mainImageId)) ??
+      selectedLocation.images[0]
+    : undefined;
+  const mainLocationImageUrl = mainLocationImage?.url ?? null;
 
   const composeInput: ComposeInput | null = brand
     ? {
         brand,
         logo: logo ?? undefined,
         products: selectedProducts,
-        location: composeLocation,
+        location: selectedLocation ?? undefined,
         mainLocationImage,
         settings: state.settings,
         notes: state.notes,
       }
     : null;
 
-  // ---- Validation ----
   const issues: string[] = [];
   if (!logo) issues.push("Choose a logo.");
-  if (selectedProducts.length === 0) issues.push("Select at least one product.");
-  if (state.locationMode === "existing" && !selectedLocation) issues.push("Choose a location.");
-  if (state.locationMode === "new") {
-    if (state.newLocation.images.length === 0) issues.push("Upload at least one location image.");
-    if (!state.newLocation.name.trim()) issues.push("Name the new location.");
-  }
-  const canGenerate = issues.length === 0 && !generating && !!brand && !!logo;
+  if (selectedProducts.length === 0) issues.push("Add at least one product.");
+  if (!selectedLocation) issues.push("Choose a location.");
+  const canGenerate = issues.length === 0 && !generating && !!brand && !!logo && !!selectedLocation;
 
-  // ---- Handlers ----
   const onPickLogo = (brandId: string, logoId: string) => {
     if (brandId !== state.brandId) dispatch({ type: "set-brand", brandId });
     dispatch({ type: "set-logo", logoId });
@@ -222,36 +123,9 @@ export function HomeGenerator() {
   const onSettings = (patch: Partial<typeof state.settings>) => dispatch({ type: "set-settings", patch });
 
   const handleGenerate = async () => {
-    if (!brand || !logo || !canGenerate || !composeInput) return;
-
-    let location = composeLocation;
-    const uploadedAssets: UploadedAssetRef[] = [];
-    if (state.locationMode === "new") {
-      state.newLocation.images.forEach((img) =>
-        uploadedAssets.push({ id: img.id, name: img.name, url: img.url, mimeType: img.mimeType, size: img.size, role: "location" }),
-      );
-      if (state.newLocation.save) {
-        const saved = locationRepository.addLocation({
-          name: state.newLocation.name,
-          brandId: brand.id,
-          usage: state.newLocation.usage,
-          images: state.newLocation.images,
-          mainImageId: mainLocationImageId,
-          description: state.newLocation.description || undefined,
-          preservationInstructions: state.newLocation.preservationInstructions || undefined,
-          saved: true,
-        });
-        location = saved;
-        toast.success(`Saved location "${saved.name}"`);
-      }
-    }
-
-    const request = buildGenerationRequest({ ...composeInput, location, mainLocationImage, uploadedAssets });
-    const isUnsavedLocation = state.locationMode === "new" && !state.newLocation.save;
-    const finalRequest = {
-      ...request,
-      locationId: isUnsavedLocation ? undefined : location?.id || undefined,
-    };
+    if (!brand || !logo || !selectedLocation || !canGenerate || !composeInput) return;
+    const request = buildGenerationRequest({ ...composeInput, location: selectedLocation, mainLocationImage });
+    const finalRequest = { ...request, locationId: selectedLocation.id };
 
     const validation = validateGenerationRequest(finalRequest);
     if (validation.length > 0) {
@@ -267,19 +141,9 @@ export function HomeGenerator() {
       logoUrl: logo.asset.url,
       productIds: selectedProductIds,
       productNames: selectedProducts.map((p) => p.name),
-      locationId: finalRequest.locationId,
-      locationName: location?.name,
+      locationId: selectedLocation.id,
+      locationName: selectedLocation.name,
       locationImageUrl: mainLocationImageUrl ?? undefined,
-      locationDraft: isUnsavedLocation
-        ? {
-            name: state.newLocation.name,
-            usage: state.newLocation.usage,
-            images: state.newLocation.images,
-            mainImageId: mainLocationImageId,
-            description: state.newLocation.description || undefined,
-            preservationInstructions: state.newLocation.preservationInstructions || undefined,
-          }
-        : undefined,
       settings: finalRequest.settings,
       instructions: finalRequest.instructions,
       notes: finalRequest.notes,
@@ -305,18 +169,34 @@ export function HomeGenerator() {
     return (
       <div className="mx-auto max-w-xl space-y-4">
         <PageHeader title="Generating your mockup" description="Hang tight — building a realistic placement." />
-        <CanvasPreview
-          settings={state.settings}
-          brand={brand}
-          logo={logo}
-          products={selectedProducts}
-          locationImageUrl={mainLocationImageUrl}
-          locationName={composeLocation?.name ?? null}
-          job={job}
-        />
+        <div className="bg-card overflow-hidden rounded-xl border shadow-sm">
+          <AspectFrame ratio={state.settings.aspectRatio} className="bg-muted">
+            {mainLocationImageUrl && (
+              <AssetImage src={mainLocationImageUrl} alt="" className="absolute inset-0 size-full object-cover" />
+            )}
+            <GeneratingCanvas job={job} />
+          </AspectFrame>
+        </div>
       </div>
     );
   }
+
+  const logoItems: PickerItem[] = logoOptions.map(({ brand: b, logo: l }) => ({
+    id: l.id,
+    name: b.name,
+    thumbnailUrl: l.asset.url,
+  }));
+  const productItems: PickerItem[] = brandProducts.map((p) => ({
+    id: p.id,
+    name: p.name,
+    thumbnailUrl: p.mainImage?.url,
+    subtitle: p.category,
+  }));
+  const locationItems: PickerItem[] = locations.map((l) => ({
+    id: l.id,
+    name: l.name,
+    thumbnailUrl: (l.images.find((i) => i.id === l.mainImageId) ?? l.images[0])?.url,
+  }));
 
   const generateButton = (
     <Button size="lg" onClick={handleGenerate} disabled={!canGenerate} className="w-full">
@@ -338,93 +218,205 @@ export function HomeGenerator() {
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-        {/* Form — mobile order: Logo, Products, Location, Style, Position, Aspect, Notes, Generate. */}
-        <Card className="lg:order-1">
-          <CardContent className="space-y-6 pt-6">
-            <div className="space-y-2" data-testid="picker-logo">
-              <Label>Logo</Label>
-              <LogoChoice logos={logoOptions} value={logo?.id ?? null} onPick={onPickLogo} />
-            </div>
+      <Card>
+        <CardContent className="space-y-6 pt-6">
+          {/* LOGO */}
+          <div className="space-y-2" data-testid="picker-logo">
+            <SectionLabel>Logo</SectionLabel>
+            {logo ? (
+              <div className="flex items-center gap-3">
+                <span className="bg-card flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border">
+                  <AssetImage src={logo.asset.url} alt="" className="size-full object-contain p-2" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{brand?.name}</p>
+                  <div className="mt-1.5 flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setLogoPicker(true)}>
+                      Change
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "set-logo", logoId: null })}>
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => setLogoPicker(true)}>
+                  <ImageIcon className="size-4" />
+                  Choose logo
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setLogoUpload(true)}>
+                  <UploadCloud className="size-4" />
+                  Upload logo
+                </Button>
+              </div>
+            )}
+          </div>
 
-            <div data-testid="picker-products">
-              <ProductPicker products={brandProducts} selectedIds={selectedProductIds} onToggle={(id) => dispatch({ type: "toggle-product", productId: id })} />
-            </div>
+          {/* PRODUCTS */}
+          <div className="space-y-2" data-testid="picker-products">
+            <SectionLabel>Products</SectionLabel>
+            {selectedProducts.length > 0 ? (
+              <div className="flex flex-wrap gap-3">
+                {selectedProducts.map((p) => (
+                  <div key={p.id} className="w-20">
+                    <div className="relative">
+                      <span className="bg-card block size-20 overflow-hidden rounded-md border">
+                        <AssetImage src={p.mainImage?.url} alt="" className="size-full object-cover" />
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: "toggle-product", productId: p.id })}
+                        aria-label={`Remove ${p.name}`}
+                        className="bg-background absolute -right-1.5 -top-1.5 rounded-full border p-0.5 shadow-sm transition-colors hover:bg-destructive hover:text-white"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                    <span className="mt-1 block truncate text-center text-[10px]">{p.name}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">{brand ? "No products selected yet." : "Choose a logo first."}</p>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setProductPicker(true)} disabled={!brand}>
+              <Plus className="size-4" />
+              Add products
+            </Button>
+          </div>
 
-            <div data-testid="picker-location">
-              <LocationPicker
-                locations={locations}
-                mode={state.locationMode}
-                locationId={state.locationId}
-                mainLocationImageId={state.mainLocationImageId}
-                newLocation={state.newLocation}
-                onSetMode={(mode) => dispatch({ type: "set-location-mode", mode })}
-                onSelectLocation={(id) => dispatch({ type: "set-location", locationId: id })}
-                onSetMainImage={(id) => dispatch({ type: "set-main-location-image", imageId: id })}
-                onUpdateNewLocation={(patch) => dispatch({ type: "update-new-location", patch })}
-              />
-            </div>
+          {/* LOCATION */}
+          <div className="space-y-2" data-testid="picker-location">
+            <SectionLabel>Location</SectionLabel>
+            {selectedLocation ? (
+              <div className="space-y-2">
+                <div className="overflow-hidden rounded-lg border">
+                  <AspectFrame ratio="16:9" className="bg-muted">
+                    <AssetImage
+                      src={mainLocationImageUrl ?? undefined}
+                      alt={selectedLocation.name}
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                  </AspectFrame>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm font-medium">{selectedLocation.name}</p>
+                  <div className="flex shrink-0 gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setLocationPicker(true)}>
+                      Change
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "set-location", locationId: null })}>
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => setLocationPicker(true)}>
+                  <MapPin className="size-4" />
+                  Choose location
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setLocationUpload(true)}>
+                  <UploadCloud className="size-4" />
+                  Upload location
+                </Button>
+              </div>
+            )}
+          </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <ControlField label="Style">
-                <SettingSelect value={state.settings.visualStyle} onChange={(v) => onSettings({ visualStyle: v })} options={VISUAL_STYLE_OPTIONS} />
-              </ControlField>
-              <ControlField label="Position">
-                <SegmentedControl value={state.settings.placement} onChange={(v) => onSettings({ placement: v })} options={POSITION_OPTIONS} />
-              </ControlField>
-            </div>
-
-            <ControlField label="Aspect ratio">
-              <SegmentedControl value={state.settings.aspectRatio} onChange={(v) => onSettings({ aspectRatio: v })} options={ASPECT_OPTIONS} />
+          {/* CONTROLS */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ControlField label="Style">
+              <SettingSelect value={state.settings.visualStyle} onChange={(v) => onSettings({ visualStyle: v })} options={VISUAL_STYLE_OPTIONS} />
             </ControlField>
-
-            <ControlField label="Notes" description="Optional. Added after the permanent preservation rules.">
-              <Textarea
-                value={state.notes}
-                onChange={(e) => dispatch({ type: "set-notes", notes: e.target.value })}
-                placeholder="Anything specific to emphasize…"
-                className="min-h-20"
-              />
+            <ControlField label="Position">
+              <SegmentedControl value={state.settings.placement} onChange={(v) => onSettings({ placement: v })} options={POSITION_OPTIONS} />
             </ControlField>
+          </div>
+          <ControlField label="Aspect ratio">
+            <SegmentedControl value={state.settings.aspectRatio} onChange={(v) => onSettings({ aspectRatio: v })} options={ASPECT_OPTIONS} />
+          </ControlField>
+          <ControlField label="Notes" description="Optional. Added after the permanent preservation rules.">
+            <Textarea
+              value={state.notes}
+              onChange={(e) => dispatch({ type: "set-notes", notes: e.target.value })}
+              placeholder="Anything specific to emphasize…"
+              className="min-h-20"
+            />
+          </ControlField>
 
-            {/* Mobile generate button — directly after Notes, no preview in between. */}
-            <div className="space-y-2 lg:hidden">
-              {issues.length > 0 && (
-                <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-                  <TriangleAlert className="text-warning size-4 shrink-0" />
-                  <span className="truncate">{issues[0]}</span>
-                </p>
-              )}
-              {generateButton}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Desktop side: live preview + generate. Hidden on mobile so the generator stays first. */}
-        <aside className="top-20 hidden space-y-3 lg:sticky lg:order-2 lg:block">
-          <CanvasPreview
-            settings={state.settings}
-            brand={brand}
-            logo={logo}
-            products={selectedProducts}
-            locationImageUrl={mainLocationImageUrl}
-            locationName={composeLocation?.name ?? null}
-            job={job}
-          />
-          {generateButton}
-          {issues.length === 0 ? (
-            <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              <Sparkles className="text-brand size-3.5" />
-              Ready · {selectedProducts.length} product{selectedProducts.length === 1 ? "" : "s"}
-            </p>
-          ) : (
-            <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              <TriangleAlert className="text-warning size-3.5 shrink-0" />
+          {issues.length > 0 && (
+            <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
+              <TriangleAlert className="text-warning size-4 shrink-0" />
               <span className="truncate">{issues[0]}</span>
             </p>
           )}
-        </aside>
-      </div>
+          {generateButton}
+        </CardContent>
+      </Card>
+
+      {/* Visual pickers + direct upload */}
+      <AssetPickerSheet
+        open={logoPicker}
+        onOpenChange={setLogoPicker}
+        title="Choose a logo"
+        items={logoItems}
+        selectedIds={logo ? [logo.id] : []}
+        onPick={(id) => {
+          const o = logoOptions.find((x) => x.logo.id === id);
+          if (o) onPickLogo(o.brand.id, o.logo.id);
+        }}
+        onUpload={() => setLogoUpload(true)}
+        uploadLabel="Upload logo"
+        searchPlaceholder="Search logos…"
+        emptyIcon={ImageIcon}
+        emptyTitle="No logos yet"
+        emptyHint="Upload a logo to get started."
+        fit="contain"
+      />
+      <AssetPickerSheet
+        open={productPicker}
+        onOpenChange={setProductPicker}
+        title="Add products"
+        items={productItems}
+        selectedIds={selectedProductIds}
+        multi
+        onPick={(id) => dispatch({ type: "toggle-product", productId: id })}
+        onUpload={() => setProductUpload(true)}
+        uploadLabel="Upload product"
+        searchPlaceholder="Search products…"
+        emptyIcon={Package}
+        emptyTitle="No products yet"
+        emptyHint="Upload a product to place in mockups."
+      />
+      <AssetPickerSheet
+        open={locationPicker}
+        onOpenChange={setLocationPicker}
+        title="Choose a location"
+        items={locationItems}
+        selectedIds={selectedLocation ? [selectedLocation.id] : []}
+        onPick={(id) => dispatch({ type: "set-location", locationId: id })}
+        onUpload={() => setLocationUpload(true)}
+        uploadLabel="Upload location"
+        searchPlaceholder="Search locations…"
+        emptyIcon={MapPin}
+        emptyTitle="No locations yet"
+        emptyHint="Upload a client site to visualize against."
+      />
+
+      <LogoUploadDialog
+        open={logoUpload}
+        onOpenChange={setLogoUpload}
+        onCreated={(brandId, logoId) => {
+          onPickLogo(brandId, logoId);
+          setLogoPicker(false);
+        }}
+      />
+      <ProductFormDialog open={productUpload} onOpenChange={setProductUpload} brands={brands} defaultBrandId={brand?.id} />
+      <LocationFormDialog open={locationUpload} onOpenChange={setLocationUpload} />
     </div>
   );
 }

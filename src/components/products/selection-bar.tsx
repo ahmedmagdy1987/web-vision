@@ -41,7 +41,7 @@ export function SelectionBar({ count, onClear, onOpenInStudio }: SelectionBarPro
           </Button>
           <Button size="sm" onClick={onOpenInStudio}>
             <Sparkles />
-            Open in Studio
+            Use in mockup
           </Button>
         </div>
       </div>

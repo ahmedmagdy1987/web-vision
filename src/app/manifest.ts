@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Malahi — Mockup Studio",
+    name: "Malahi — Mockup Generator",
     short_name: "Malahi",
     description: "Internal Malahi tool for creating realistic product-placement mockups.",
     start_url: "/",

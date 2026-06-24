@@ -132,13 +132,13 @@ export default function ProductsPage() {
     const brandIds = new Set(selected.map((p) => p.brandId));
     const commonBrandId =
       brandIds.size === 1 ? selected[0].brandId : activeBrand?.id ?? brands[0]?.id;
-    // Studio composes within a single brand. Carry only the resolved brand's
+    // A mockup composes within a single brand. Carry only the resolved brand's
     // products and tell the user if a cross-brand selection was narrowed.
     const carried = selected.filter((p) => p.brandId === commonBrandId);
     if (carried.length < selected.length) {
       const brandName = brands.find((b) => b.id === commonBrandId)?.name ?? "one brand";
       toast.info(
-        `Studio works with one brand at a time — kept ${carried.length} ${brandName} product${carried.length === 1 ? "" : "s"}.`,
+        `A mockup uses one brand at a time — kept ${carried.length} ${brandName} product${carried.length === 1 ? "" : "s"}.`,
       );
     }
     studioPrefill.set({
@@ -146,7 +146,7 @@ export default function ProductsPage() {
       brandId: commonBrandId,
       source: "products",
     });
-    router.push("/studio");
+    router.push("/");
   };
 
   const isFiltering =

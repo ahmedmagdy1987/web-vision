@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 const TITLES: Record<string, string> = {
   "/": "Generate",
   "/gallery": "Gallery",
-  "/identity": "Logos",
+  "/logos": "Logos",
   "/products": "Products",
   "/locations": "Locations",
 };
@@ -18,7 +18,7 @@ export function DocumentTitle() {
   React.useEffect(() => {
     const key = pathname.startsWith("/gallery/") ? "/gallery" : pathname;
     const label = TITLES[key];
-    document.title = label ? `${label} — Malahi` : "Malahi · Mockup Studio";
+    document.title = label ? `${label} — Malahi` : "Malahi · Mockup Generator";
   }, [pathname]);
   return null;
 }

@@ -1,9 +1,8 @@
 import { Card } from "@/components/ui/card";
-import { MalahiMark } from "@/components/layout/app-logo";
 
 /**
- * Shared branded wrapper for the authentication screens. Uses the Malahi brand
- * mark on the brand accent, matching the app shell.
+ * Shared branded wrapper for the authentication screens. Text-only Malahi
+ * wordmark (no invented symbol), matching the app shell.
  */
 export function AuthCard({
   title,
@@ -19,14 +18,11 @@ export function AuthCard({
   return (
     <div className="bg-background flex min-h-dvh items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center gap-2.5">
-          <span className="bg-brand text-brand-foreground flex size-10 shrink-0 items-center justify-center rounded-xl shadow-sm">
-            <MalahiMark className="size-6" />
-          </span>
-          <div className="leading-tight">
-            <p className="text-base font-semibold">Malahi</p>
-            <p className="text-muted-foreground text-xs">Mockup Studio · internal tool</p>
-          </div>
+        <div className="mb-6">
+          <p className="text-xl font-bold tracking-tight">
+            <span className="text-brand">Malahi</span>
+          </p>
+          <p className="text-muted-foreground text-xs">Mockup Generator · internal tool</p>
         </div>
         <Card className="p-6">
           {title && <h1 className="text-lg font-semibold tracking-tight">{title}</h1>}

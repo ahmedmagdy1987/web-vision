@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MalahiMark } from "@/components/layout/app-logo";
 import { useAuth } from "@/lib/auth/auth-context";
 
 /**
@@ -14,9 +13,7 @@ export function PendingAccess() {
   return (
     <div className="bg-background flex min-h-dvh items-center justify-center px-4">
       <Card className="w-full max-w-md p-6 text-center">
-        <div className="bg-brand text-brand-foreground mx-auto mb-4 flex size-12 items-center justify-center rounded-xl shadow-sm">
-          <MalahiMark className="size-7" />
-        </div>
+        <p className="text-brand mb-4 text-2xl font-bold tracking-tight">Malahi</p>
         <h1 className="text-lg font-semibold tracking-tight">Access pending</h1>
         <p className="text-muted-foreground mt-2 text-sm">
           Your Malahi account is active, but it hasn&apos;t been granted access yet.

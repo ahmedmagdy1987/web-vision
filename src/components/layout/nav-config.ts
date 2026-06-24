@@ -20,7 +20,7 @@ export interface NavItem {
 // workspace/org concepts are intentionally absent from the normal UI.
 export const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/", icon: Home, description: "Generate a mockup" },
-  { label: "Logos", href: "/identity", icon: Sparkles, description: "Brand logo library" },
+  { label: "Logos", href: "/logos", icon: Sparkles, description: "Logo library" },
   { label: "Products", href: "/products", icon: Package, description: "Games & equipment" },
   { label: "Locations", href: "/locations", icon: MapPin, description: "Client sites & venues" },
   { label: "Gallery", href: "/gallery", icon: ImageIcon, description: "Generated mockups" },

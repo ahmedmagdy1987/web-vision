@@ -63,7 +63,7 @@ export function GlobalSearch() {
           onSelect: () =>
             navigate(() => {
               appStore.setSelectedBrand(b.id);
-              router.push("/identity");
+              router.push("/logos");
             }),
         }))
     : [];

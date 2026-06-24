@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Malahi · Mockup Studio",
+    default: "Malahi · Mockup Generator",
     template: "%s — Malahi",
   },
   description: "Internal Malahi tool for creating realistic product-placement mockups.",

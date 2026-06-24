@@ -115,10 +115,10 @@ export default function GalleryPage() {
         <EmptyState
           icon={ImageIcon}
           title="No mockups yet"
-          description="Generated results appear here. Head to the Studio to compose and generate your first visual."
+          description="Generated mockups appear here. Create your first mockup on Home."
           action={
             <Button asChild>
-              <Link href="/studio">Open Studio</Link>
+              <Link href="/">Create a mockup</Link>
             </Button>
           }
         />
