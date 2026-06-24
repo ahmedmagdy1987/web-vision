@@ -112,6 +112,8 @@ export function AssetPickerSheet({
                       <AssetImage
                         src={item.thumbnailUrl}
                         alt=""
+                        fallbackIcon={emptyIcon}
+                        fallbackLabel="No image"
                         className={cn("size-full", fit === "contain" ? "object-contain p-2" : "object-cover")}
                       />
                     </span>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Archive, Images, MoreVertical, Pencil, RotateCcw, Sparkles } from "lucide-react";
+import { Archive, Images, MoreVertical, Package, Pencil, RotateCcw, Sparkles } from "lucide-react";
 import type { Brand, Product } from "@/lib/domain";
 import { PRODUCT_USAGE_LABELS } from "@/lib/domain";
 import { cn } from "@/lib/utils";
@@ -115,6 +115,7 @@ export function ProductCard({
           <AssetImage
             src={product.mainImage?.url}
             alt={product.name}
+            fallbackIcon={Package}
             className="size-full object-cover"
           />
         </div>
@@ -150,6 +151,8 @@ export function ProductCard({
           <AssetImage
             src={product.mainImage?.url}
             alt={product.name}
+            fallbackIcon={Package}
+            fallbackLabel="No image uploaded"
             className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         </AspectFrame>

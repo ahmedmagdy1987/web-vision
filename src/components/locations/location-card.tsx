@@ -32,6 +32,8 @@ export function LocationCard({ location, projectName, onEdit, onUseInStudio }: L
           <AssetImage
             src={main?.url}
             alt={location.name}
+            fallbackIcon={MapPin}
+            fallbackLabel="No image uploaded"
             className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         </AspectFrame>

@@ -63,7 +63,7 @@ export function GalleryMobileFilters({ projects, brands, products, locations, fi
   if (filters.brandId !== "all") {
     chips.push({
       key: "brand",
-      label: brands.find((b) => b.id === filters.brandId)?.name ?? "Brand",
+      label: brands.find((b) => b.id === filters.brandId)?.name ?? "Logo",
       onRemove: () => patch({ brandId: "all", productId: "all", locationId: "all" }),
     });
   }

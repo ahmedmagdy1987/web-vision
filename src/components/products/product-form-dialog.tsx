@@ -180,7 +180,7 @@ export function ProductFormDialog({
 
         {noBrands ? (
           <p className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
-            Create a brand first — every product belongs to a brand.
+            Add a logo first — every product belongs to a logo.
           </p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
@@ -204,11 +204,11 @@ export function ProductFormDialog({
               {/* Brand */}
               <div className="space-y-1.5">
                 <Label htmlFor="product-brand">
-                  Brand <span className="text-destructive">*</span>
+                  Logo <span className="text-destructive">*</span>
                 </Label>
                 <Select value={brandId} onValueChange={setBrandId}>
                   <SelectTrigger id="product-brand" aria-invalid={submitted && brandError}>
-                    <SelectValue placeholder="Select a brand" />
+                    <SelectValue placeholder="Select a logo" />
                   </SelectTrigger>
                   <SelectContent>
                     {brandOptions.map((brand) => (
@@ -224,7 +224,7 @@ export function ProductFormDialog({
                     ))}
                   </SelectContent>
                 </Select>
-                {submitted && brandError && <p className="text-destructive text-xs">Brand is required.</p>}
+                {submitted && brandError && <p className="text-destructive text-xs">Logo is required.</p>}
               </div>
 
               {/* Category */}

@@ -65,13 +65,13 @@ export function GalleryFilters({ brands, products, locations, filters, onChange 
   return (
     <div className="bg-card/60 flex flex-col gap-4 rounded-xl border p-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <FilterField id="filter-brand" label="Brand">
+        <FilterField id="filter-brand" label="Logo">
           <Select value={filters.brandId} onValueChange={handleBrandChange}>
-            <SelectTrigger id="filter-brand" size="sm" aria-label="Filter by brand">
-              <SelectValue placeholder="All brands" />
+            <SelectTrigger id="filter-brand" size="sm" aria-label="Filter by logo">
+              <SelectValue placeholder="All logos" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All brands</SelectItem>
+              <SelectItem value="all">All logos</SelectItem>
               {brands.map((brand) => (
                 <SelectItem key={brand.id} value={brand.id}>
                   {brand.name}

@@ -86,14 +86,14 @@ export function ProductFilters({
         {/* Brand */}
         <div className="min-w-40 flex-1 space-y-1.5 sm:flex-none">
           <Label htmlFor="filter-brand" className="text-muted-foreground text-xs">
-            Brand
+            Logo
           </Label>
           <Select value={filters.brandId} onValueChange={(value) => patch({ brandId: value })}>
             <SelectTrigger id="filter-brand" className="sm:w-44">
-              <SelectValue placeholder="All brands" />
+              <SelectValue placeholder="All logos" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL_VALUE}>All brands</SelectItem>
+              <SelectItem value={ALL_VALUE}>All logos</SelectItem>
               {brands.map((brand) => (
                 <SelectItem key={brand.id} value={brand.id}>
                   <span className="flex items-center gap-2">

@@ -34,10 +34,10 @@ const POSITION_OPTIONS: ControlOption<Placement>[] = [
   { value: "right", label: "Right" },
 ];
 const ASPECT_OPTIONS: ControlOption<AspectRatio>[] = [
-  { value: "4:5", label: "Portrait" },
-  { value: "1:1", label: "Square" },
-  { value: "16:9", label: "Wide" },
-  { value: "9:16", label: "Story" },
+  { value: "4:5", label: "Portrait · 4:5" },
+  { value: "1:1", label: "Square · 1:1" },
+  { value: "16:9", label: "Wide · 16:9" },
+  { value: "9:16", label: "Story · 9:16" },
 ];
 
 let prefillConsumed = false;
@@ -87,8 +87,11 @@ export function HomeGenerator() {
 
   const brand = brands.find((b) => b.id === state.brandId) ?? null;
   const logo = brand?.logos.find((l) => l.id === state.logoId && l.status === "active") ?? null;
-  const brandProducts = brand ? products.filter((p) => p.brandId === brand.id && p.status === "active") : [];
-  const selectedProducts = brandProducts.filter((p) => state.productIds.includes(p.id));
+  // Any active product can be placed — product selection is independent of the
+  // chosen logo (the logo's brand is resolved internally at generation time).
+  const selectableProducts = products.filter((p) => p.status === "active");
+  const selectedProducts = selectableProducts.filter((p) => state.productIds.includes(p.id));
+  const firstActiveBrand = brands.find((b) => b.status === "active") ?? null;
   const selectedProductIds = selectedProducts.map((p) => p.id);
 
   const selectedLocation = locations.find((l) => l.id === state.locationId) ?? null;
@@ -117,8 +120,8 @@ export function HomeGenerator() {
   const canGenerate = issues.length === 0 && !generating && !!brand && !!logo && !!selectedLocation;
 
   const onPickLogo = (brandId: string, logoId: string) => {
-    if (brandId !== state.brandId) dispatch({ type: "set-brand", brandId });
-    dispatch({ type: "set-logo", logoId });
+    // Pick a logo without clearing products/location (any-order selection).
+    dispatch({ type: "select-logo", brandId, logoId });
   };
   const onSettings = (patch: Partial<typeof state.settings>) => dispatch({ type: "set-settings", patch });
 
@@ -186,7 +189,7 @@ export function HomeGenerator() {
     name: b.name,
     thumbnailUrl: l.asset.url,
   }));
-  const productItems: PickerItem[] = brandProducts.map((p) => ({
+  const productItems: PickerItem[] = selectableProducts.map((p) => ({
     id: p.id,
     name: p.name,
     thumbnailUrl: p.mainImage?.url,
@@ -218,7 +221,8 @@ export function HomeGenerator() {
         }
       />
 
-      <Card>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+        <Card className="lg:order-1">
         <CardContent className="space-y-6 pt-6">
           {/* LOGO */}
           <div className="space-y-2" data-testid="picker-logo">
@@ -256,14 +260,19 @@ export function HomeGenerator() {
 
           {/* PRODUCTS */}
           <div className="space-y-2" data-testid="picker-products">
-            <SectionLabel>Products</SectionLabel>
+            <div className="flex items-center justify-between">
+              <SectionLabel>Products</SectionLabel>
+              {selectedProducts.length > 0 && (
+                <span className="text-muted-foreground text-xs">{selectedProducts.length} selected</span>
+              )}
+            </div>
             {selectedProducts.length > 0 ? (
               <div className="flex flex-wrap gap-3">
                 {selectedProducts.map((p) => (
                   <div key={p.id} className="w-20">
                     <div className="relative">
                       <span className="bg-card block size-20 overflow-hidden rounded-md border">
-                        <AssetImage src={p.mainImage?.url} alt="" className="size-full object-cover" />
+                        <AssetImage src={p.mainImage?.url} alt="" fallbackIcon={Package} fallbackLabel="No image" className="size-full object-cover" />
                       </span>
                       <button
                         type="button"
@@ -279,11 +288,11 @@ export function HomeGenerator() {
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground text-sm">{brand ? "No products selected yet." : "Choose a logo first."}</p>
+              <p className="text-muted-foreground text-sm">No products selected yet.</p>
             )}
-            <Button variant="outline" size="sm" onClick={() => setProductPicker(true)} disabled={!brand}>
+            <Button variant="outline" size="sm" onClick={() => setProductPicker(true)}>
               <Plus className="size-4" />
-              Add products
+              {selectedProducts.length > 0 ? "Add more products" : "Add products"}
             </Button>
           </div>
 
@@ -297,6 +306,8 @@ export function HomeGenerator() {
                     <AssetImage
                       src={mainLocationImageUrl ?? undefined}
                       alt={selectedLocation.name}
+                      fallbackIcon={MapPin}
+                      fallbackLabel="No image uploaded"
                       className="absolute inset-0 size-full object-cover"
                     />
                   </AspectFrame>
@@ -356,7 +367,53 @@ export function HomeGenerator() {
           )}
           {generateButton}
         </CardContent>
-      </Card>
+        </Card>
+
+        {/* Visual summary of the selected assets (desktop). */}
+        <aside className="top-20 hidden space-y-3 lg:sticky lg:order-2 lg:block">
+          <p className="text-muted-foreground text-sm font-medium">Your mockup</p>
+          <div className="bg-card overflow-hidden rounded-xl border shadow-sm">
+            <AspectFrame ratio={state.settings.aspectRatio} className="bg-muted">
+              {selectedLocation ? (
+                <AssetImage
+                  src={mainLocationImageUrl ?? undefined}
+                  alt={selectedLocation.name}
+                  fallbackIcon={MapPin}
+                  fallbackLabel="No image uploaded"
+                  className="absolute inset-0 size-full object-cover"
+                />
+              ) : (
+                <div className="text-muted-foreground absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center">
+                  <ImageIcon className="size-7 opacity-50" />
+                  <p className="text-xs">Pick a location to preview your mockup</p>
+                </div>
+              )}
+              {logo && (
+                <span className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-white/90 px-2 py-1 shadow-sm">
+                  <span className="size-5 shrink-0 overflow-hidden rounded-sm">
+                    <AssetImage src={logo.asset.url} alt="" className="size-full object-contain" />
+                  </span>
+                  {brand && <span className="max-w-28 truncate text-xs font-medium text-zinc-900">{brand.name}</span>}
+                </span>
+              )}
+              {selectedProducts.length > 0 && (
+                <div className="absolute inset-x-3 bottom-3 flex flex-wrap items-end gap-2">
+                  {selectedProducts.slice(0, 4).map((p) => (
+                    <span key={p.id} className="size-12 overflow-hidden rounded-md border-2 border-white/80 shadow-md">
+                      <AssetImage src={p.mainImage?.url} alt="" fallbackIcon={Package} className="size-full object-cover" />
+                    </span>
+                  ))}
+                  {selectedProducts.length > 4 && (
+                    <span className="rounded-md bg-black/55 px-2 py-1 text-xs font-medium text-white">
+                      +{selectedProducts.length - 4}
+                    </span>
+                  )}
+                </div>
+              )}
+            </AspectFrame>
+          </div>
+        </aside>
+      </div>
 
       {/* Visual pickers + direct upload */}
       <AssetPickerSheet
@@ -415,7 +472,7 @@ export function HomeGenerator() {
           setLogoPicker(false);
         }}
       />
-      <ProductFormDialog open={productUpload} onOpenChange={setProductUpload} brands={brands} defaultBrandId={brand?.id} />
+      <ProductFormDialog open={productUpload} onOpenChange={setProductUpload} brands={brands} defaultBrandId={brand?.id ?? firstActiveBrand?.id} />
       <LocationFormDialog open={locationUpload} onOpenChange={setLocationUpload} />
     </div>
   );

@@ -63,6 +63,7 @@ export function createInitialState(prefill: StudioPrefill | null): StudioState {
 
 export type StudioAction =
   | { type: "set-brand"; brandId: string }
+  | { type: "select-logo"; brandId: string; logoId: string }
   | { type: "set-logo"; logoId: string | null }
   | { type: "toggle-product"; productId: string }
   | { type: "set-products"; productIds: string[] }
@@ -79,6 +80,10 @@ export function studioReducer(state: StudioState, action: StudioAction): StudioS
     case "set-brand":
       // Changing brand invalidates the logo and product selection.
       return { ...state, brandId: action.brandId, logoId: null, productIds: [] };
+    case "select-logo":
+      // Pick a logo (and its brand) without clearing products/location, so the
+      // employee can choose assets in any order on Home.
+      return { ...state, brandId: action.brandId, logoId: action.logoId };
     case "set-logo":
       return { ...state, logoId: action.logoId };
     case "toggle-product": {

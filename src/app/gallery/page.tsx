@@ -82,7 +82,7 @@ export default function GalleryPage() {
         <SearchInput
           value={searchQuery}
           onValueChange={(value) => appStore.setSearchQuery(value)}
-          placeholder="Search by brand, product, location or notes…"
+          placeholder="Search by logo, product, location or notes…"
           containerClassName="max-w-md"
           aria-label="Search results"
         />
