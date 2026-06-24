@@ -1,6 +1,4 @@
 import { MockImageAdapter } from "./mock-adapter";
-import { OpenAIImageAdapter } from "./openai-adapter";
-import { getImageProvider, type ImageProvider } from "./provider-config";
 import type { ImageGenerationAdapter } from "./types";
 
 export type {
@@ -11,15 +9,15 @@ export type {
   ImageReference,
 } from "./types";
 export { MockImageAdapter } from "./mock-adapter";
-export { OpenAIImageAdapter } from "./openai-adapter";
 export { getImageProvider, type ImageProvider } from "./provider-config";
 
 /**
- * Single place that decides which provider is active, driven explicitly by
- * `IMAGE_GENERATION_PROVIDER` (mock | openai). Selection NEVER silently falls
- * back to mock — an unknown value throws, and choosing "openai" returns the
- * OpenAI adapter (whose server route then requires a configured key).
+ * The in-browser generation flow always uses the mock adapter. The real OpenAI
+ * generation runs ENTIRELY server-side via `/api/generate-image`, selected by the
+ * server-authoritative `IMAGE_GENERATION_PROVIDER` — the browser never selects or
+ * runs the OpenAI provider, and never holds the API key. Provider selection lives
+ * in `getImageProvider()` (server) + the route, never here.
  */
-export function getImageAdapter(provider: ImageProvider = getImageProvider()): ImageGenerationAdapter {
-  return provider === "openai" ? new OpenAIImageAdapter() : new MockImageAdapter();
+export function getImageAdapter(): ImageGenerationAdapter {
+  return new MockImageAdapter();
 }

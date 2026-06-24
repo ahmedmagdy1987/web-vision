@@ -1,11 +1,14 @@
 import "server-only";
 
+import sharp from "sharp";
 import type { AspectRatio } from "@/lib/domain";
 import {
   DEFAULT_OPENAI_MODEL,
   DEFAULT_OPENAI_OUTPUT_FORMAT,
   DEFAULT_OPENAI_QUALITY,
-  openAiSizeForAspect,
+  finalSize,
+  OPENAI_INPUT_FIDELITY,
+  openAiNativeSize,
 } from "./provider-config";
 
 export type OpenAIQuality = "low" | "medium" | "high" | "auto";
@@ -23,8 +26,8 @@ const FORMATS: OpenAIOutputFormat[] = ["webp", "png", "jpeg"];
 
 /**
  * Read + validate the server-only OpenAI configuration. Throws if the key is
- * missing — the caller must NOT silently fall back to mock when the provider is
- * configured for OpenAI.
+ * missing — the caller must NOT silently fall back to mock when configured for
+ * OpenAI.
  */
 export function requireOpenAIConfig(): OpenAIServerConfig {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -60,21 +63,22 @@ export interface OpenAIGenerateInput {
   references: OpenAIReferenceImage[];
 }
 
+/** The provider-native result (before post-processing to the final ratio). */
 export interface OpenAIGenerateResult {
   base64: string;
-  dataUrl: string;
   mimeType: string;
-  width: number;
-  height: number;
+  nativeWidth: number;
+  nativeHeight: number;
+  nativeSize: string;
   model: string;
   quality: string;
-  size: string;
+  inputFidelity: string;
   requestId?: string;
   usage?: unknown;
 }
 
-/** Minimal client surface so this is unit-testable with a fake. The real
- *  implementation is the official `openai` SDK (`client.images.edit`). */
+/** Minimal client surface so this is unit-testable with a fake (the real impl is
+ *  the official `openai` SDK's `client.images.edit`). */
 export interface OpenAIImagesClient {
   images: {
     edit(
@@ -89,14 +93,12 @@ export interface OpenAIImagesClient {
 }
 
 /**
- * Order references deterministically — the location is the BASE scene, then each
- * product, then the logo — and validate that the required images are present.
+ * Order references deterministically — location (BASE scene) → products → logo —
+ * and validate that the required images are present.
  */
 export function orderReferences(references: OpenAIReferenceImage[]): OpenAIReferenceImage[] {
   const location = references.filter((r) => r.role === "location");
-  if (location.length === 0) {
-    throw new Error("A base location image is required before generating.");
-  }
+  if (location.length === 0) throw new Error("A base location image is required before generating.");
   const products = references.filter((r) => r.role === "product");
   const logo = references.filter((r) => r.role === "logo");
   if (products.length === 0 && logo.length === 0) {
@@ -109,13 +111,22 @@ function mimeForFormat(format: OpenAIOutputFormat): string {
   return format === "png" ? "image/png" : format === "jpeg" ? "image/jpeg" : "image/webp";
 }
 
+/** Retry only explicitly transient failures — never 4xx (content-policy /
+ *  invalid-request). 429 + 5xx + status-less network errors are transient. */
+export function isRetryableProviderError(err: unknown): boolean {
+  if ((err as { name?: string })?.name === "AbortError") return false;
+  const status = (err as { status?: number })?.status;
+  if (typeof status === "number") return status === 429 || status >= 500;
+  return true;
+}
+
 const DEFAULT_TIMEOUT_MS = 120_000;
 
 /**
- * Call GPT Image 2's edit endpoint (the request contains existing images, so the
- * edit flow is used). Bounded retries on transient errors; honors an abort
- * signal + per-attempt timeout. Returns a base64 data URL ready for the existing
- * Storage upload path. Never logs or returns the API key.
+ * Call GPT Image 2's edit endpoint with `input_fidelity: high` and a VALID native
+ * size. Bounded retries on transient errors only; honors an abort signal +
+ * per-attempt timeout. Returns the native base64 image (post-process separately
+ * to the final ratio). Never logs or returns the API key.
  */
 export async function generateImageWithOpenAI(
   client: OpenAIImagesClient,
@@ -124,7 +135,7 @@ export async function generateImageWithOpenAI(
   opts: { signal?: AbortSignal; timeoutMs?: number; maxAttempts?: number } = {},
 ): Promise<OpenAIGenerateResult> {
   const ordered = orderReferences(input.references);
-  const { width, height, size } = openAiSizeForAspect(input.aspectRatio);
+  const native = openAiNativeSize(input.aspectRatio);
   const mimeType = mimeForFormat(config.outputFormat);
   const maxAttempts = Math.max(1, opts.maxAttempts ?? 2);
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -142,9 +153,10 @@ export async function generateImageWithOpenAI(
           model: config.model,
           image: ordered.map((r) => r.file),
           prompt: input.prompt,
-          size,
+          size: native.size,
           quality: config.quality,
           output_format: config.outputFormat,
+          input_fidelity: OPENAI_INPUT_FIDELITY,
           n: 1,
           background: "auto",
         },
@@ -154,20 +166,20 @@ export async function generateImageWithOpenAI(
       if (!b64) throw new Error("OpenAI returned no image data.");
       return {
         base64: b64,
-        dataUrl: `data:${mimeType};base64,${b64}`,
         mimeType,
-        width,
-        height,
+        nativeWidth: native.width,
+        nativeHeight: native.height,
+        nativeSize: native.size,
         model: config.model,
         quality: config.quality,
-        size,
+        inputFidelity: OPENAI_INPUT_FIDELITY,
         requestId: response._request_id ?? undefined,
         usage: response.usage,
       };
     } catch (err) {
       lastError = err;
       if ((err as { name?: string })?.name === "AbortError" && opts.signal?.aborted) throw err;
-      if (attempt >= maxAttempts) break;
+      if (attempt >= maxAttempts || !isRetryableProviderError(err)) break;
       await new Promise((r) => setTimeout(r, 300 * attempt));
     } finally {
       clearTimeout(timer);
@@ -175,4 +187,53 @@ export async function generateImageWithOpenAI(
     }
   }
   throw new Error(`OpenAI image generation failed: ${(lastError as Error)?.message ?? "unknown error"}`);
+}
+
+export interface PostProcessedImage {
+  buffer: Buffer;
+  base64: string;
+  dataUrl: string;
+  width: number;
+  height: number;
+  mimeType: string;
+}
+
+/**
+ * Post-process the native provider image to the application's EXACT final size
+ * via a deterministic centered crop (sharp) — never an upscale or a stretch.
+ * Preserves quality (crop, then re-encode in the output format).
+ */
+export async function postProcessToFinal(
+  imageBytes: Buffer,
+  aspectRatio: AspectRatio,
+  outputFormat: OpenAIOutputFormat,
+): Promise<PostProcessedImage> {
+  const final = finalSize(aspectRatio);
+  const mimeType = mimeForFormat(outputFormat);
+
+  const meta = await sharp(imageBytes, { failOn: "none" }).metadata();
+  const w = meta.width ?? final.width;
+  const h = meta.height ?? final.height;
+
+  let pipeline = sharp(imageBytes, { failOn: "none" });
+  if (w >= final.width && h >= final.height) {
+    // Deterministic centered crop — no scaling at all.
+    pipeline = pipeline.extract({
+      left: Math.floor((w - final.width) / 2),
+      top: Math.floor((h - final.height) / 2),
+      width: final.width,
+      height: final.height,
+    });
+  } else {
+    // Native unexpectedly smaller than final → cover-fit (last resort).
+    pipeline = pipeline.resize(final.width, final.height, { fit: "cover", position: "centre" });
+  }
+
+  if (outputFormat === "png") pipeline = pipeline.png();
+  else if (outputFormat === "jpeg") pipeline = pipeline.jpeg({ quality: 90 });
+  else pipeline = pipeline.webp({ quality: 90 });
+
+  const buffer = await pipeline.toBuffer();
+  const base64 = buffer.toString("base64");
+  return { buffer, base64, dataUrl: `data:${mimeType};base64,${base64}`, width: final.width, height: final.height, mimeType };
 }
