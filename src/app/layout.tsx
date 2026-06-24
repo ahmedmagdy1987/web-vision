@@ -16,15 +16,15 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Web Vision · Malahi",
-    template: "%s — Web Vision",
+    default: "Malahi · Mockup Studio",
+    template: "%s — Malahi",
   },
-  description: "Internal visual-generation workspace for creating realistic client mockups.",
-  applicationName: "Web Vision",
+  description: "Internal Malahi tool for creating realistic product-placement mockups.",
+  applicationName: "Malahi",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#6d28d9",
+  themeColor: "#0d9488",
 };
 
 export default function RootLayout({

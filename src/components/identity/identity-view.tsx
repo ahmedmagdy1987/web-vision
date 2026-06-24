@@ -5,16 +5,9 @@ import { useSearchParams } from "next/navigation";
 import { Palette, Plus } from "lucide-react";
 import type { Brand } from "@/lib/domain";
 import { useCan } from "@/lib/auth/auth-context";
-import { useActiveBrand, useAppState, useBrands, useLocations, useMounted, useProducts, useProjects } from "@/lib/hooks";
+import { useActiveBrand, useAppState, useBrands, useLocations, useMounted, useProducts } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
@@ -57,16 +50,12 @@ export function IdentityView() {
   const brands = useBrands();
   const products = useProducts();
   const locations = useLocations();
-  const projects = useProjects();
   const mounted = useMounted();
   const { selectedBrandId } = useAppState();
   const { brand: currentBrand } = useActiveBrand();
 
   const [search, setSearch] = React.useState("");
   const [filter, setFilter] = React.useState<StatusFilter>("active");
-  const [projectFilter, setProjectFilter] = React.useState<string>("all");
-
-  const selectedProject = projectFilter !== "all" ? projects.find((p) => p.id === projectFilter) : undefined;
 
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Brand | null>(null);
@@ -100,9 +89,8 @@ export function IdentityView() {
     (b.description?.toLowerCase().includes(query) ?? false);
 
   const matchesFilter = (b: Brand) => filter === "all" || b.status === filter;
-  const matchesProject = (b: Brand) => !selectedProject || selectedProject.brandIds.includes(b.id);
 
-  const visible = brands.filter((b) => matchesFilter(b) && matchesSearch(b) && matchesProject(b));
+  const visible = brands.filter((b) => matchesFilter(b) && matchesSearch(b));
   const activeCount = brands.filter((b) => b.status === "active").length;
   const archivedCount = brands.filter((b) => b.status === "archived").length;
 
@@ -122,8 +110,8 @@ export function IdentityView() {
       </React.Suspense>
 
       <PageHeader
-        title="Identity"
-        description="Manage your brands, accents, and logo assets that power every generation."
+        title="Logo Library"
+        description="Brand logos applied to products in your generated mockups."
         actions={
           <Button onClick={openAdd} disabled={!canManageBrands}>
             <Plus />
@@ -137,22 +125,9 @@ export function IdentityView() {
           <SearchInput
             value={search}
             onValueChange={setSearch}
-            placeholder="Search brands…"
+            placeholder="Search logos…"
             containerClassName="sm:max-w-xs"
           />
-          <Select value={projectFilter} onValueChange={setProjectFilter}>
-            <SelectTrigger size="sm" className="w-full sm:w-48" aria-label="Filter by project">
-              <SelectValue placeholder="All projects" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All projects</SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
         <div className="inline-flex h-9 w-fit items-center rounded-lg bg-muted p-1 text-muted-foreground">
           {FILTERS.map((f) => {
@@ -182,8 +157,8 @@ export function IdentityView() {
       ) : brands.length === 0 ? (
         <EmptyState
           icon={Palette}
-          title="No brands yet"
-          description="Create your first brand to start generating on-brand visuals."
+          title="No logos yet"
+          description="Add a brand and upload its logos to start generating mockups."
           action={
             <Button onClick={openAdd}>
               <Plus />
@@ -194,21 +169,9 @@ export function IdentityView() {
       ) : visible.length === 0 ? (
         <EmptyState
           icon={Palette}
-          title={selectedProject ? "No brands in this project" : "No brands match"}
+          title="No logos match"
           description={
-            selectedProject
-              ? "No brands available for this project. Add a brand in Identity to continue."
-              : query
-                ? "Try a different search term or status filter."
-                : `No ${filter} brands. Switch the filter to see more.`
-          }
-          action={
-            selectedProject ? (
-              <Button onClick={openAdd} disabled={!canManageBrands}>
-                <Plus />
-                Add brand
-              </Button>
-            ) : undefined
+            query ? "Try a different search term or status filter." : `No ${filter} brands. Switch the filter to see more.`
           }
         />
       ) : (

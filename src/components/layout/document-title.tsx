@@ -6,11 +6,11 @@ import { usePathname } from "next/navigation";
 // Per-route document titles for the (client-rendered) application routes. Auth
 // pages set their own titles via server metadata.
 const TITLES: Record<string, string> = {
-  "/": "Home",
-  "/studio": "Studio",
+  "/": "Generate",
   "/gallery": "Gallery",
-  "/identity": "Identity",
+  "/identity": "Logos",
   "/products": "Products",
+  "/locations": "Locations",
 };
 
 export function DocumentTitle() {
@@ -18,7 +18,7 @@ export function DocumentTitle() {
   React.useEffect(() => {
     const key = pathname.startsWith("/gallery/") ? "/gallery" : pathname;
     const label = TITLES[key];
-    document.title = label ? `${label} — Web Vision` : "Web Vision · Malahi";
+    document.title = label ? `${label} — Malahi` : "Malahi · Mockup Studio";
   }, [pathname]);
   return null;
 }

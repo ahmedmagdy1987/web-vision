@@ -1,9 +1,9 @@
-import { Aperture } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { MalahiMark } from "@/components/layout/app-logo";
 
 /**
- * Shared branded wrapper for the authentication screens. Uses the Web Vision
- * brand mark of record (Aperture on the brand accent), matching the app shell.
+ * Shared branded wrapper for the authentication screens. Uses the Malahi brand
+ * mark on the brand accent, matching the app shell.
  */
 export function AuthCard({
   title,
@@ -21,11 +21,11 @@ export function AuthCard({
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-2.5">
           <span className="bg-brand text-brand-foreground flex size-10 shrink-0 items-center justify-center rounded-xl shadow-sm">
-            <Aperture className="size-5" />
+            <MalahiMark className="size-6" />
           </span>
           <div className="leading-tight">
-            <p className="text-base font-semibold">Web Vision</p>
-            <p className="text-muted-foreground text-xs">Malahi Studio · internal workspace</p>
+            <p className="text-base font-semibold">Malahi</p>
+            <p className="text-muted-foreground text-xs">Mockup Studio · internal tool</p>
           </div>
         </div>
         <Card className="p-6">

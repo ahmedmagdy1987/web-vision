@@ -23,7 +23,7 @@ export function Sidebar() {
       )}
     >
       <div className={cn("flex h-14 items-center border-b px-3", sidebarCollapsed ? "justify-center" : "justify-between")}>
-        <Link href="/" aria-label="Web Vision home">
+        <Link href="/" aria-label="Malahi home">
           <AppLogo collapsed={sidebarCollapsed} />
         </Link>
       </div>

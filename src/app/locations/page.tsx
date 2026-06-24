@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, MapPinned, Plus, SearchX } from "lucide-react";
+import { MapPinned, Plus, SearchX } from "lucide-react";
 import type { Location } from "@/lib/domain";
-import { useActiveProject, useLocations, useMounted } from "@/lib/hooks";
+import { useLocations, useMounted } from "@/lib/hooks";
 import { studioPrefill } from "@/lib/store/studio-draft";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -37,30 +37,20 @@ export default function LocationsPage() {
   const mounted = useMounted();
   const router = useRouter();
   const locations = useLocations();
-  const { project, projects } = useActiveProject();
 
   const [search, setSearch] = React.useState("");
   const [usageFilter, setUsageFilter] = React.useState<UsageFilter>("all");
-  const [scope, setScope] = React.useState<"active" | "all">("active");
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Location | null>(null);
-
-  const selectedProject = scope === "active" ? project : null;
-
-  const projectNameFor = React.useCallback(
-    (location: Location) => projects.find((p) => p.locationIds.includes(location.id))?.name,
-    [projects],
-  );
 
   const filtered = React.useMemo(() => {
     return locations
       .filter((l) => {
         if (usageFilter !== "all" && l.usage !== usageFilter) return false;
-        if (selectedProject && !selectedProject.locationIds.includes(l.id)) return false;
         return matchesSearch(l, search);
       })
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  }, [locations, usageFilter, selectedProject, search]);
+  }, [locations, usageFilter, search]);
 
   const openCreate = () => {
     setEditing(null);
@@ -72,11 +62,8 @@ export default function LocationsPage() {
   };
   const useInStudio = (location: Location) => {
     studioPrefill.set({ locationId: location.id, source: "locations" });
-    router.push("/studio");
+    router.push("/");
   };
-
-  const isFiltering = usageFilter !== "all" || search.trim().length > 0;
-  const projectHasNoLocations = Boolean(selectedProject) && filtered.length === 0 && !isFiltering;
 
   return (
     <div className="space-y-6 pb-24">
@@ -99,15 +86,6 @@ export default function LocationsPage() {
           containerClassName="sm:max-w-xs"
         />
         <div className="flex items-center gap-2">
-          <Select value={scope} onValueChange={(v) => setScope(v as "active" | "all")}>
-            <SelectTrigger size="sm" className="w-auto min-w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">{project ? project.name : "Current project"}</SelectItem>
-              <SelectItem value="all">All locations</SelectItem>
-            </SelectContent>
-          </Select>
           <Select value={usageFilter} onValueChange={(v) => setUsageFilter(v as UsageFilter)}>
             <SelectTrigger size="sm" className="w-auto min-w-28">
               <SelectValue />
@@ -128,18 +106,6 @@ export default function LocationsPage() {
           icon={MapPinned}
           title="No locations yet"
           description="Upload a client site to start visualizing products on location."
-          action={
-            <Button onClick={openCreate}>
-              <Plus />
-              Add location
-            </Button>
-          }
-        />
-      ) : projectHasNoLocations ? (
-        <EmptyState
-          icon={MapPin}
-          title="No locations available for this project"
-          description="Upload a client site in Locations to continue, or switch to “All locations”."
           action={
             <Button onClick={openCreate}>
               <Plus />
@@ -174,7 +140,6 @@ export default function LocationsPage() {
               <LocationCard
                 key={location.id}
                 location={location}
-                projectName={projectNameFor(location)}
                 onEdit={openEdit}
                 onUseInStudio={useInStudio}
               />
@@ -187,7 +152,6 @@ export default function LocationsPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         location={editing}
-        activeProjectId={project?.id}
       />
     </div>
   );

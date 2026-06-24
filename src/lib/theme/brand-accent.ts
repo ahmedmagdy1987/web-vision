@@ -5,7 +5,7 @@
  * readable contrast against the accent.
  */
 
-export const DEFAULT_ACCENT = "#6366f1";
+export const DEFAULT_ACCENT = "#0d9488";
 
 interface Rgb {
   r: number;

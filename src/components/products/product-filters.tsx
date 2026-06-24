@@ -50,7 +50,6 @@ interface ProductFiltersProps {
 const USAGE_VALUES: ProductUsage[] = ["indoor", "outdoor", "both"];
 
 export function ProductFilters({
-  projects,
   brands,
   categories,
   filters,
@@ -84,26 +83,6 @@ export function ProductFilters({
       />
 
       <div className="flex flex-wrap items-end gap-3">
-        {/* Project */}
-        <div className="min-w-40 flex-1 space-y-1.5 sm:flex-none">
-          <Label htmlFor="filter-project" className="text-muted-foreground text-xs">
-            Project
-          </Label>
-          <Select value={filters.projectId} onValueChange={(value) => patch({ projectId: value })}>
-            <SelectTrigger id="filter-project" className="sm:w-44">
-              <SelectValue placeholder="All projects" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_VALUE}>All projects</SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
         {/* Brand */}
         <div className="min-w-40 flex-1 space-y-1.5 sm:flex-none">
           <Label htmlFor="filter-brand" className="text-muted-foreground text-xs">

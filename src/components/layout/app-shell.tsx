@@ -29,13 +29,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Protected shell (Supabase mode only; demo mode is always open).
   if (mode === "supabase") {
-    if (!ready) return <FullScreen>Loading your workspace…</FullScreen>;
+    if (!ready) return <FullScreen>Loading Malahi…</FullScreen>;
     if (!user) return <FullScreen>Redirecting to sign in…</FullScreen>;
     if (!activeOrg) return <PendingAccess />;
   }
 
-  // Studio is a workspace and gets more horizontal room than admin pages.
-  const wide = pathname.startsWith("/studio");
+  // Home hosts the full mockup-generation workflow and gets more horizontal room.
+  const wide = pathname === "/";
 
   return (
     <div className="flex h-dvh w-full overflow-hidden">

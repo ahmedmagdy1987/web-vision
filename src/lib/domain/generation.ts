@@ -101,6 +101,8 @@ export type InstructionSectionKey =
   | "product"
   | "location"
   | "controls"
+  | "composition"
+  | "preservation"
   | "notes";
 
 export interface InstructionSection {

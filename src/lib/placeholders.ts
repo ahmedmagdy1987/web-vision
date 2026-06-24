@@ -172,7 +172,7 @@ export function productPlaceholderDataUrl(options: {
   width?: number;
   height?: number;
 }): string {
-  const { name, category, accent = "#6d28d9", width = 1200, height = 900 } = options;
+  const { name, category, accent = "#0d9488", width = 1200, height = 900 } = options;
   const c1 = shade(accent, 24);
   const c2 = shade(accent, -32);
   const s = Math.min(width, height) * 0.42;
@@ -197,7 +197,7 @@ export function scenePlaceholderDataUrl(options: {
   height?: number;
   seed?: number;
 }): string {
-  const { label = "", sublabel = "", accent = "#6d28d9", width = 1200, height = 900, seed = 1 } = options;
+  const { label = "", sublabel = "", accent = "#0d9488", width = 1200, height = 900, seed = 1 } = options;
   const c1 = shade(accent, 30);
   const c2 = shade(accent, -34);
   const angle = (seed % 6) * 30;

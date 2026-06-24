@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 248 64" width="248" height="64" role="img" aria-label="Malahi logo">
+  <!-- Crafted Malahi brand lockup for the simplified review candidate. Replace
+       with the official Malahi logo when available. -->
+  <g transform="translate(8,12)">
+    <rect width="40" height="40" rx="11" fill="#0d9488"/>
+    <g transform="translate(4,3)" fill="none" stroke="#ffffff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="16" cy="14" r="8.4"/>
+      <path d="M16 14V5.6M16 14h8.4M16 14v8.4M16 14H7.6M16 14l5.94-5.94M16 14l5.94 5.94M16 14l-5.94 5.94M16 14L10.06 8.06"/>
+      <circle cx="16" cy="14" r="1.7" fill="#ffffff" stroke="none"/>
+      <path d="M10.6 22 16 16l5.4 6"/>
+      <path d="M8.4 26h15.2"/>
+    </g>
+  </g>
+  <text x="64" y="40" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="-0.5" fill="#0f172a">Malahi</text>
+</svg>

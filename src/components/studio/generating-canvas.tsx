@@ -8,11 +8,10 @@ import { cn } from "@/lib/utils";
 
 const STAGES = [
   "Preparing assets",
-  "Reading the location",
-  "Composing the scene",
-  "Integrating products",
-  "Applying brand identity",
-  "Rendering final outputs",
+  "Understanding the location",
+  "Positioning products",
+  "Applying the logo",
+  "Finalizing the mockup",
 ];
 
 /**
@@ -38,7 +37,7 @@ export function GeneratingCanvas({ job, onCancel }: { job: GenerationJob | null;
     <div className="absolute inset-0 overflow-hidden" data-testid="studio-generating">
       {/* Animated gradient base (calm static gradient under reduced motion). */}
       <div
-        className="from-brand/40 via-background/85 to-indigo-500/25 absolute inset-0 bg-gradient-to-br motion-safe:animate-pulse"
+        className="from-brand/40 via-background/85 to-brand/20 absolute inset-0 bg-gradient-to-br motion-safe:animate-pulse"
         aria-hidden
       />
       {/* Slow rotating light + shimmer (hidden under reduced motion). */}
@@ -46,7 +45,7 @@ export function GeneratingCanvas({ job, onCancel }: { job: GenerationJob | null;
         <div className="absolute -inset-1/2 animate-spin bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.20),transparent_45%)] [animation-duration:9s]" />
         <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent_35%,rgba(255,255,255,0.14)_50%,transparent_65%)] animate-pulse [animation-duration:2.4s]" />
         <span className="bg-brand/30 absolute left-[14%] top-[18%] size-24 animate-pulse rounded-full blur-2xl" />
-        <span className="absolute bottom-[16%] right-[12%] size-28 animate-pulse rounded-full bg-indigo-400/25 blur-3xl [animation-duration:3s]" />
+        <span className="bg-brand/25 absolute bottom-[16%] right-[12%] size-28 animate-pulse rounded-full blur-3xl [animation-duration:3s]" />
       </div>
 
       {/* Status content */}

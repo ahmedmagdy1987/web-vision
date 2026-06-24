@@ -24,8 +24,9 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.21 0.006 285.885);
 
-  /* Brand accent — overridden at runtime per selected brand. */
-  --brand: oklch(0.55 0.2 277);
+  /* Malahi brand accent (teal). Stable across the shell — not overridden per
+     selected logo, so the app stays unmistakably Malahi-branded. */
+  --brand: oklch(0.6 0.1 190);
   --brand-foreground: oklch(0.985 0 0);
 
   /* Primary maps to the brand accent so CTAs adopt the active brand. */
@@ -75,7 +76,7 @@
   --popover: oklch(0.21 0.006 285.885);
   --popover-foreground: oklch(0.985 0 0);
 
-  --brand: oklch(0.62 0.19 277);
+  --brand: oklch(0.68 0.095 190);
   --brand-foreground: oklch(0.985 0 0);
 
   --primary: var(--brand);
