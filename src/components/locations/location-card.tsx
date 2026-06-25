@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { FolderKanban, Images, MapPin, MoreVertical, Pencil, Sparkles } from "lucide-react";
 import type { Location } from "@/lib/domain";
 import { LOCATION_USAGE_LABELS } from "@/lib/domain";
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AspectFrame } from "@/components/common/aspect-frame";
 import { AssetImage } from "@/components/common/asset-image";
+import { ImageLightbox } from "@/components/common/image-lightbox";
 
 interface LocationCardProps {
   location: Location;
@@ -25,18 +27,35 @@ interface LocationCardProps {
 export function LocationCard({ location, projectName, onEdit, onUseInStudio }: LocationCardProps) {
   const main = location.images.find((i) => i.id === location.mainImageId) ?? location.images[0];
 
+  const images = React.useMemo(() => {
+    const ordered = [...location.images].sort((a, b) =>
+      a.id === location.mainImageId ? -1 : b.id === location.mainImageId ? 1 : 0,
+    );
+    return ordered.filter((i) => i.url).map((i) => ({ url: i.url, alt: location.name }));
+  }, [location.images, location.mainImageId, location.name]);
+  const [lightboxOpen, setLightboxOpen] = React.useState(false);
+  const [lightboxIndex, setLightboxIndex] = React.useState(0);
+
   return (
+    <>
     <Card className="group relative gap-0 overflow-hidden p-0 transition-all hover:-translate-y-0.5 hover:border-brand-border hover:shadow-md">
       <div className="relative">
-        <AspectFrame ratio="1:1" className="bg-muted">
-          <AssetImage
-            src={main?.url}
-            alt={location.name}
-            fallbackIcon={MapPin}
-            fallbackLabel="No image uploaded"
-            className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-          />
-        </AspectFrame>
+        <button
+          type="button"
+          onClick={() => images.length > 0 && setLightboxOpen(true)}
+          aria-label={`View ${location.name} image`}
+          className="block w-full cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+        >
+          <AspectFrame ratio="1:1" className="bg-muted">
+            <AssetImage
+              src={main?.url}
+              alt={location.name}
+              fallbackIcon={MapPin}
+              fallbackLabel="No image uploaded"
+              className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            />
+          </AspectFrame>
+        </button>
 
         <div className="absolute top-2 right-2 rounded-md bg-background/80 opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-within:opacity-100">
           <DropdownMenu>
@@ -90,5 +109,13 @@ export function LocationCard({ location, projectName, onEdit, onUseInStudio }: L
         )}
       </div>
     </Card>
+    <ImageLightbox
+      open={lightboxOpen}
+      onOpenChange={setLightboxOpen}
+      images={images}
+      index={lightboxIndex}
+      onIndexChange={setLightboxIndex}
+    />
+    </>
   );
 }

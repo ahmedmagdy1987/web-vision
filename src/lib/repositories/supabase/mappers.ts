@@ -244,7 +244,7 @@ export function resultFromRow(row: GenerationResultRow, sign: SignUrl): Generati
     projectId: row.project_id ?? undefined,
     image,
     index: row.result_index,
-    seed: Number(row.seed ?? 0),
+    seed: row.seed == null ? undefined : Number(row.seed),
     review: reviewFromDb(row.review_status),
     favorite: row.is_favorite,
     snapshot,

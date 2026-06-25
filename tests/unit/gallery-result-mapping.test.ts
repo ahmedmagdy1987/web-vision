@@ -137,4 +137,9 @@ describe("resultFromRow — OpenAI + mock results both map safely", () => {
     expect(r.snapshot.brandAccent).toBe("#7c3aed");
     expect(r.image.mimeType).toBe("image/svg+xml"); // mock → SVG → Mock badge
   });
+
+  it("does not coerce an absent provider seed to 0", () => {
+    expect(resultFromRow(row({ seed: null }), sign).seed).toBeUndefined();
+    expect(resultFromRow(row({ seed: 7 }), sign).seed).toBe(7);
+  });
 });

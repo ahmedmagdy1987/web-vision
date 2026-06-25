@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AspectFrame } from "@/components/common/aspect-frame";
 import { AssetImage } from "@/components/common/asset-image";
+import { ImageLightbox } from "@/components/common/image-lightbox";
 import { EntityStatusBadge } from "@/components/common/status-badge";
 
 interface ProductCardProps {
@@ -47,6 +48,36 @@ export function ProductCard({
   const archived = product.status === "archived";
   const accent = brand?.accentColor ?? "var(--brand)";
   const extraTags = product.tags.length - MAX_TAGS;
+
+  const images = React.useMemo(
+    () =>
+      [product.mainImage, ...product.referenceImages]
+        .filter((img): img is NonNullable<typeof img> => Boolean(img?.url))
+        .map((img) => ({ url: img.url, alt: product.name })),
+    [product.mainImage, product.referenceImages, product.name],
+  );
+  const [lightboxOpen, setLightboxOpen] = React.useState(false);
+  const [lightboxIndex, setLightboxIndex] = React.useState(0);
+  // Opening the image preview must never select the card (stop the card click).
+  const openLightbox = React.useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (images.length > 0) {
+        setLightboxIndex(0);
+        setLightboxOpen(true);
+      }
+    },
+    [images.length],
+  );
+  const lightbox = (
+    <ImageLightbox
+      open={lightboxOpen}
+      onOpenChange={setLightboxOpen}
+      images={images}
+      index={lightboxIndex}
+      onIndexChange={setLightboxIndex}
+    />
+  );
 
   const ActionsMenu = (
     <DropdownMenu>
@@ -96,6 +127,7 @@ export function ProductCard({
 
   if (compact) {
     return (
+      <>
       <Card
         className={cn(
           "flex-row items-center gap-3 rounded-lg p-2.5 transition-colors",
@@ -111,14 +143,19 @@ export function ProductCard({
           onClick={(e) => e.stopPropagation()}
           aria-label={`Select ${product.name}`}
         />
-        <div className="bg-muted size-14 shrink-0 overflow-hidden rounded-md">
+        <button
+          type="button"
+          onClick={openLightbox}
+          aria-label={`View ${product.name} image`}
+          className="bg-muted size-14 shrink-0 cursor-zoom-in overflow-hidden rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
           <AssetImage
             src={product.mainImage?.url}
             alt={product.name}
             fallbackIcon={Package}
             className="size-full object-cover"
           />
-        </div>
+        </button>
         <div className="min-w-0 flex-1 space-y-0.5">
           <p className="truncate text-sm font-medium">{product.name}</p>
           {BrandLine}
@@ -133,10 +170,13 @@ export function ProductCard({
         </div>
         {ActionsMenu}
       </Card>
+      {lightbox}
+      </>
     );
   }
 
   return (
+    <>
     <Card
       className={cn(
         "group relative gap-0 overflow-hidden p-0 transition-all",
@@ -147,15 +187,22 @@ export function ProductCard({
       onClick={() => onToggleSelect(product.id)}
     >
       <div className="relative">
-        <AspectFrame ratio="1:1" className="bg-muted">
-          <AssetImage
-            src={product.mainImage?.url}
-            alt={product.name}
-            fallbackIcon={Package}
-            fallbackLabel="No image uploaded"
-            className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-          />
-        </AspectFrame>
+        <button
+          type="button"
+          onClick={openLightbox}
+          aria-label={`View ${product.name} image`}
+          className="block w-full cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+        >
+          <AspectFrame ratio="1:1" className="bg-muted">
+            <AssetImage
+              src={product.mainImage?.url}
+              alt={product.name}
+              fallbackIcon={Package}
+              fallbackLabel="No image uploaded"
+              className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            />
+          </AspectFrame>
+        </button>
 
         {/* Select checkbox */}
         <div
@@ -224,5 +271,7 @@ export function ProductCard({
         )}
       </div>
     </Card>
+    {lightbox}
+    </>
   );
 }

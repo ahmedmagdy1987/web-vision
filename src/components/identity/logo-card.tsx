@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AssetImage } from "@/components/common/asset-image";
+import { ImageLightbox } from "@/components/common/image-lightbox";
 import { LogoDeleteDialog } from "@/components/logos/logo-delete-dialog";
 import { LogoEditDialog } from "./logo-edit-dialog";
 
@@ -33,6 +34,7 @@ interface LogoCardProps {
 export function LogoCard({ logo, brandId, isDefault, name }: LogoCardProps) {
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
+  const [lightboxOpen, setLightboxOpen] = React.useState(false);
   const replaceRef = React.useRef<HTMLInputElement>(null);
 
   const archived = logo.status === "archived";
@@ -68,11 +70,18 @@ export function LogoCard({ logo, brandId, isDefault, name }: LogoCardProps) {
       )}
     >
       <div className="bg-muted/40 relative">
-        <AssetImage
-          src={logo.asset.url}
-          alt={`${LOGO_KIND_LABELS[logo.kind]} logo`}
-          className="aspect-square w-full bg-[linear-gradient(45deg,var(--muted)_25%,transparent_25%),linear-gradient(-45deg,var(--muted)_25%,transparent_25%),linear-gradient(45deg,transparent_75%,var(--muted)_75%),linear-gradient(-45deg,transparent_75%,var(--muted)_75%)] bg-[length:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0] object-contain p-4"
-        />
+        <button
+          type="button"
+          onClick={() => setLightboxOpen(true)}
+          aria-label={`View ${LOGO_KIND_LABELS[logo.kind]} logo`}
+          className="block w-full cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+        >
+          <AssetImage
+            src={logo.asset.url}
+            alt={`${LOGO_KIND_LABELS[logo.kind]} logo`}
+            className="aspect-square w-full bg-[linear-gradient(45deg,var(--muted)_25%,transparent_25%),linear-gradient(-45deg,var(--muted)_25%,transparent_25%),linear-gradient(45deg,transparent_75%,var(--muted)_75%),linear-gradient(-45deg,transparent_75%,var(--muted)_75%)] bg-[length:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0] object-contain p-4"
+          />
+        </button>
         {isDefault && (
           <span className="bg-brand text-brand-foreground absolute top-2 left-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold">
             <Star className="size-3 fill-current" />
@@ -191,6 +200,14 @@ export function LogoCard({ logo, brandId, isDefault, name }: LogoCardProps) {
         logo={logo}
         brandId={brandId}
         name={name ?? LOGO_KIND_LABELS[logo.kind]}
+      />
+
+      <ImageLightbox
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        images={[{ url: logo.asset.url, alt: `${LOGO_KIND_LABELS[logo.kind]} logo` }]}
+        index={0}
+        onIndexChange={() => {}}
       />
     </li>
   );
