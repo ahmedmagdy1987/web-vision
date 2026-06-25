@@ -26,6 +26,8 @@ function summarizeNames(names: string[]): string {
 export function ResultCard({ result }: ResultCardProps) {
   const { snapshot } = result;
   const created = new Date(result.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  // Mock results are SVG placeholders; real provider results (e.g. OpenAI WebP) are not.
+  const isMock = result.image.mimeType === "image/svg+xml";
 
   const handleToggleFavorite = React.useCallback(() => {
     const next = resultRepository.toggleFavorite(result.id);
@@ -70,11 +72,13 @@ export function ResultCard({ result }: ResultCardProps) {
           <ReviewBadge review={result.review} />
         </div>
 
-        <div className="pointer-events-none absolute bottom-2 left-2 z-20">
-          <span className="bg-background/85 text-muted-foreground rounded-md px-1.5 py-0.5 text-[10px] font-medium backdrop-blur-sm">
-            Mock result
-          </span>
-        </div>
+        {isMock && (
+          <div className="pointer-events-none absolute bottom-2 left-2 z-20">
+            <span className="bg-background/85 text-muted-foreground rounded-md px-1.5 py-0.5 text-[10px] font-medium backdrop-blur-sm">
+              Mock result
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Stretched link makes the whole card a single accessible navigation target. */}

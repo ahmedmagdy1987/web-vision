@@ -17,6 +17,8 @@ import type {
   ResultReview,
   ResultSnapshot,
 } from "@/lib/domain";
+import { DEFAULT_GENERATION_SETTINGS } from "@/lib/domain";
+import { safeAccent } from "@/lib/theme/brand-accent";
 import type {
   BrandAssetRow,
   BrandRow,
@@ -195,8 +197,35 @@ export function jobFromRow(row: GenerationJobRow, resultIds: string[]): Generati
   };
 }
 
+/**
+ * Normalize a stored result snapshot into a COMPLETE, presentation-safe domain
+ * shape. Older mock records, server-created OpenAI records and any legacy
+ * incomplete record all map to the same shape with safe fallbacks (a valid
+ * accent, a brand name, arrays for product ids/names). Keeps presentation
+ * components from having to understand multiple database shapes.
+ */
+export function normalizeResultSnapshot(raw: unknown): ResultSnapshot {
+  const s = (raw && typeof raw === "object" ? raw : {}) as Partial<ResultSnapshot>;
+  return {
+    brandId: s.brandId ?? "",
+    brandName: (typeof s.brandName === "string" && s.brandName.trim()) || "Mockup",
+    brandAccent: safeAccent(s.brandAccent),
+    logoId: s.logoId,
+    logoUrl: s.logoUrl,
+    productIds: Array.isArray(s.productIds) ? s.productIds : [],
+    productNames: Array.isArray(s.productNames) ? s.productNames : [],
+    locationId: s.locationId,
+    locationName: s.locationName,
+    locationImageUrl: s.locationImageUrl,
+    locationDraft: s.locationDraft,
+    settings: s.settings ?? DEFAULT_GENERATION_SETTINGS,
+    instructions: s.instructions ?? { sections: [], text: "" },
+    notes: s.notes,
+  };
+}
+
 export function resultFromRow(row: GenerationResultRow, sign: SignUrl): GenerationResult {
-  const snapshot = row.snapshot as unknown as ResultSnapshot;
+  const snapshot = normalizeResultSnapshot(row.snapshot);
   const meta = (row.provider_metadata as { requestId?: string } | null) ?? null;
   const image: ImageAsset = {
     id: row.id,

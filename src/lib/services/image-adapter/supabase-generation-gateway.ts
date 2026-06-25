@@ -181,11 +181,24 @@ class SupabaseGenerationGateway implements GenerationGateway {
   }
 
   async persistResult(ctx: GenerationContext, data: PersistResultInput): Promise<void> {
+    // Capture display fields so Gallery cards render fully (brand name + accent,
+    // product names, location name) — the same complete snapshot shape the rest
+    // of the app expects.
+    const [brandRes, productsRes, locationRes] = await Promise.all([
+      this.sb.from("brands").select("name, accent_color").eq("id", data.input.brandId).maybeSingle(),
+      this.sb.from("products").select("id, name").in("id", data.input.productIds),
+      this.sb.from("locations").select("name").eq("id", data.input.locationId).maybeSingle(),
+    ]);
+    const productById = new Map((productsRes.data ?? []).map((p) => [p.id, p.name]));
     const snapshot = {
       brandId: data.input.brandId,
+      brandName: brandRes.data?.name ?? "Mockup",
+      brandAccent: brandRes.data?.accent_color ?? "#0d9488",
       logoId: data.input.logoId,
       productIds: data.input.productIds,
+      productNames: data.input.productIds.map((id) => productById.get(id) ?? "Product"),
       locationId: data.input.locationId,
+      locationName: locationRes.data?.name,
       settings: data.input.settings,
       notes: data.input.notes,
     };

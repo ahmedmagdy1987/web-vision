@@ -28,6 +28,9 @@ export class ResultRepository extends ObservableCollection<GenerationResult> imp
   toggleFavorite(id: ID): GenerationResult | undefined {
     return this.update(id, (r) => ({ ...r, favorite: !r.favorite, updatedAt: nowIso() }));
   }
+
+  // The local store is the source of truth (no remote) — already current.
+  async refresh(): Promise<void> {}
 }
 
 export const resultRepository = new ResultRepository();

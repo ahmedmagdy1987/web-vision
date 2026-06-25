@@ -6,6 +6,7 @@ import { ImageIcon, MapPin, Package, Plus, RotateCcw, Sparkles, TriangleAlert, U
 import type { AspectRatio, ControlOption, GenerationJob, Placement, ResultSnapshot } from "@/lib/domain";
 import { VISUAL_STYLE_OPTIONS } from "@/lib/domain";
 import { useBrands, useLocations, useProducts } from "@/lib/hooks";
+import { resultRepository } from "@/lib/repositories";
 import { buildGenerationRequest, type ComposeInput } from "@/lib/services/instruction-composer";
 import { startGeneration } from "@/lib/services/generation-service";
 import { requestOpenAIGeneration, GenerationRequestError } from "@/lib/services/generation-client";
@@ -84,6 +85,8 @@ export function HomeGenerator() {
   const [job, setJob] = React.useState<GenerationJob | null>(null);
   const [generating, setGenerating] = React.useState(false);
   const [genError, setGenError] = React.useState<{ message: string; retryable: boolean } | null>(null);
+  // Set when generation succeeded + persisted server-side but the client refetch failed.
+  const [savedResultId, setSavedResultId] = React.useState<string | null>(null);
 
   const [logoPicker, setLogoPicker] = React.useState(false);
   const [productPicker, setProductPicker] = React.useState(false);
@@ -175,6 +178,7 @@ export function HomeGenerator() {
     setGenerating(true);
     setJob(null);
     setGenError(null);
+    setSavedResultId(null);
     try {
       if (providerMode === "openai") {
         // Server-side OpenAI generation: submit ONLY trusted IDs + settings. The
@@ -193,6 +197,15 @@ export function HomeGenerator() {
           notes: state.notes.trim() || undefined,
           idempotencyKey: crypto.randomUUID(),
         });
+        // Reload the authoritative results from Supabase so the new server-created
+        // result appears instantly — no fake client result, no duplicate. If the
+        // refetch fails the result is still saved; do not mark it failed.
+        try {
+          await resultRepository.refresh();
+        } catch {
+          setSavedResultId(outcome.resultId);
+          return;
+        }
         toast.success("Mockup ready");
         router.push(`/gallery/${outcome.resultId}`);
         return;
@@ -422,6 +435,28 @@ export function HomeGenerator() {
                   Try again
                 </Button>
               )}
+            </div>
+          )}
+          {savedResultId && (
+            <div className="space-y-2 rounded-lg border p-3" role="status">
+              <p className="text-sm">
+                Your mockup was generated and saved, but the latest result could not be refreshed.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => router.push(`/gallery/${savedResultId}`)}>
+                  Open result
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    void resultRepository.refresh();
+                    router.push("/gallery");
+                  }}
+                >
+                  Refresh Gallery
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

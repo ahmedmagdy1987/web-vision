@@ -4,6 +4,7 @@ import * as React from "react";
 import type { GenerationResult } from "@/lib/domain";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResultCard } from "./result-card";
+import { ResultCardBoundary } from "./result-card-boundary";
 import { ResultRow } from "./result-row";
 
 export type GalleryView = "grid" | "list";
@@ -17,7 +18,9 @@ export function GalleryGrid({ results }: { results: GenerationResult[] }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-4">
       {results.map((result) => (
-        <ResultCard key={result.id} result={result} />
+        <ResultCardBoundary key={result.id}>
+          <ResultCard result={result} />
+        </ResultCardBoundary>
       ))}
     </div>
   );
@@ -27,7 +30,9 @@ export function GalleryList({ results }: { results: GenerationResult[] }) {
   return (
     <div className="flex flex-col gap-2.5">
       {results.map((result) => (
-        <ResultRow key={result.id} result={result} />
+        <ResultCardBoundary key={result.id}>
+          <ResultRow result={result} />
+        </ResultCardBoundary>
       ))}
     </div>
   );

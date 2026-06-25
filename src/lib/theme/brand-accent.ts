@@ -13,7 +13,9 @@ interface Rgb {
   b: number;
 }
 
-export function hexToRgb(hex: string): Rgb | null {
+export function hexToRgb(hex: string | undefined | null): Rgb | null {
+  // Final safety boundary: never call .replace() on an unvalidated value.
+  if (typeof hex !== "string" || hex.trim().length === 0) return null;
   const clean = hex.replace("#", "").trim();
   const normalized =
     clean.length === 3
@@ -36,15 +38,21 @@ export function relativeLuminance({ r, g, b }: Rgb): number {
   return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 }
 
-/** Pick a readable foreground (near-black or white) for a given accent. */
-export function readableForeground(hex: string): string {
+/** Pick a readable foreground (near-black or white) for a given accent. Tolerates
+ *  absent/invalid colors (returns white). */
+export function readableForeground(hex: string | undefined | null): string {
   const rgb = hexToRgb(hex);
   if (!rgb) return "#ffffff";
   return relativeLuminance(rgb) > 0.55 ? "#18181b" : "#ffffff";
 }
 
-export function isValidHexColor(hex: string): boolean {
+export function isValidHexColor(hex: string | undefined | null): boolean {
   return hexToRgb(hex) !== null;
+}
+
+/** A guaranteed-valid accent: the record's accent if valid, else the Malahi default. */
+export function safeAccent(hex: string | undefined | null): string {
+  return isValidHexColor(hex) ? (hex as string) : DEFAULT_ACCENT;
 }
 
 /** Set the active brand accent on the document root. */
