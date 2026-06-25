@@ -6,9 +6,8 @@ import {
   DEFAULT_OPENAI_MODEL,
   DEFAULT_OPENAI_OUTPUT_FORMAT,
   DEFAULT_OPENAI_QUALITY,
-  finalSize,
-  OPENAI_INPUT_FIDELITY,
-  openAiNativeSize,
+  OPENAI_INPUT_FIDELITY_METADATA,
+  openAiSize,
 } from "./provider-config";
 
 export type OpenAIQuality = "low" | "medium" | "high" | "auto";
@@ -123,6 +122,7 @@ export function isRetryableProviderError(err: unknown): boolean {
 export type ProviderErrorCode =
   | "OPENAI_MODEL_ACCESS_DENIED"
   | "OPENAI_BILLING_REQUIRED"
+  | "OPENAI_INVALID_PARAMETER"
   | "OPENAI_INVALID_REQUEST"
   | "OPENAI_CONTENT_POLICY"
   | "OPENAI_TIMEOUT"
@@ -147,7 +147,7 @@ export class OpenAIProviderError extends Error {
  * provider error. Used to produce actionable, non-sensitive UI messages.
  */
 export function classifyProviderError(err: unknown): OpenAIProviderError {
-  const e = err as { status?: number; code?: string; type?: string; name?: string; message?: string };
+  const e = err as { status?: number; code?: string; type?: string; param?: string; name?: string; message?: string };
   const status = e?.status;
   const code = (e?.code ?? "").toLowerCase();
   const type = (e?.type ?? "").toLowerCase();
@@ -171,19 +171,55 @@ export function classifyProviderError(err: unknown): OpenAIProviderError {
   if (status === 429) {
     return new OpenAIProviderError("PROVIDER_ERROR", "The image provider is busy. Please try again shortly.");
   }
+  if (typeof status === "number" && status >= 400 && status < 500 && e?.param) {
+    return new OpenAIProviderError(
+      "OPENAI_INVALID_PARAMETER",
+      "The image request configuration needs to be corrected before generating again.",
+    );
+  }
   if (typeof status === "number" && status >= 400 && status < 500) {
     return new OpenAIProviderError("OPENAI_INVALID_REQUEST", "The image provider rejected the request parameters.");
   }
   return new OpenAIProviderError("PROVIDER_ERROR", "The image provider could not complete the request.");
 }
 
+/**
+ * Extract ONLY safe diagnostic fields from a provider error for server-side
+ * logging — never the key, headers, signed URLs, storage paths, raw request
+ * payloads or input bytes.
+ */
+export function safeProviderDiag(err: unknown): {
+  status?: number;
+  code?: string;
+  type?: string;
+  param?: string;
+  requestId?: string;
+} {
+  const e = err as {
+    status?: number;
+    code?: string;
+    type?: string;
+    param?: string;
+    request_id?: string;
+    requestID?: string;
+    headers?: Record<string, string>;
+  };
+  return {
+    status: e?.status,
+    code: e?.code,
+    type: e?.type,
+    param: e?.param,
+    requestId: e?.request_id ?? e?.requestID ?? e?.headers?.["x-request-id"],
+  };
+}
+
 const DEFAULT_TIMEOUT_MS = 120_000;
 
 /**
- * Call GPT Image 2's edit endpoint with `input_fidelity: high` and a VALID native
- * size. Bounded retries on transient errors only; honors an abort signal +
- * per-attempt timeout. Returns the native base64 image (post-process separately
- * to the final ratio). Never logs or returns the API key.
+ * Call GPT Image 2's edit endpoint with the EXACT requested size and only the
+ * documented fields (no input_fidelity, no background). Bounded retries on
+ * transient errors only; honors an abort signal + per-attempt timeout. Returns
+ * the correctly-sized base64 image. Never logs or returns the API key.
  */
 export async function generateImageWithOpenAI(
   client: OpenAIImagesClient,
@@ -192,7 +228,7 @@ export async function generateImageWithOpenAI(
   opts: { signal?: AbortSignal; timeoutMs?: number; maxAttempts?: number } = {},
 ): Promise<OpenAIGenerateResult> {
   const ordered = orderReferences(input.references);
-  const native = openAiNativeSize(input.aspectRatio);
+  const size = openAiSize(input.aspectRatio);
   const mimeType = mimeForFormat(config.outputFormat);
   const maxAttempts = Math.max(1, opts.maxAttempts ?? 2);
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -205,17 +241,18 @@ export async function generateImageWithOpenAI(
     opts.signal?.addEventListener("abort", onAbort, { once: true });
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
+      // GPT Image 2 edit payload — minimal, documented fields ONLY. No
+      // `input_fidelity` (invalid for gpt-image-2; it uses high fidelity
+      // automatically) and no `background` (defaults to auto).
       const response = await client.images.edit(
         {
           model: config.model,
           image: ordered.map((r) => r.file),
           prompt: input.prompt,
-          size: native.size,
+          size: size.size,
           quality: config.quality,
           output_format: config.outputFormat,
-          input_fidelity: OPENAI_INPUT_FIDELITY,
           n: 1,
-          background: "auto",
         },
         { signal: controller.signal },
       );
@@ -224,12 +261,12 @@ export async function generateImageWithOpenAI(
       return {
         base64: b64,
         mimeType,
-        nativeWidth: native.width,
-        nativeHeight: native.height,
-        nativeSize: native.size,
+        nativeWidth: size.width,
+        nativeHeight: size.height,
+        nativeSize: size.size,
         model: config.model,
         quality: config.quality,
-        inputFidelity: OPENAI_INPUT_FIDELITY,
+        inputFidelity: OPENAI_INPUT_FIDELITY_METADATA,
         requestId: response._request_id ?? undefined,
         usage: response.usage,
       };
@@ -243,6 +280,8 @@ export async function generateImageWithOpenAI(
       opts.signal?.removeEventListener("abort", onAbort);
     }
   }
+  // Server-side dev diagnostics — SAFE fields only (never key/headers/raw body).
+  console.warn("[openai] image edit failed", safeProviderDiag(lastError));
   throw classifyProviderError(lastError);
 }
 
@@ -256,41 +295,33 @@ export interface PostProcessedImage {
 }
 
 /**
- * Post-process the native provider image to the application's EXACT final size
- * via a deterministic centered crop (sharp) — never an upscale or a stretch.
- * Preserves quality (crop, then re-encode in the output format).
+ * Normalize a CORRECTLY-SIZED GPT Image 2 result: decode + validate it, re-encode
+ * to the configured format, and report its ACTUAL dimensions. It NEVER crops or
+ * stretches — the provider already returned the exact requested size, so no
+ * content is removed.
  */
 export async function postProcessToFinal(
   imageBytes: Buffer,
-  aspectRatio: AspectRatio,
+  _aspectRatio: AspectRatio,
   outputFormat: OpenAIOutputFormat,
 ): Promise<PostProcessedImage> {
-  const final = finalSize(aspectRatio);
   const mimeType = mimeForFormat(outputFormat);
 
-  const meta = await sharp(imageBytes, { failOn: "none" }).metadata();
-  const w = meta.width ?? final.width;
-  const h = meta.height ?? final.height;
-
+  // Decode + validate; re-encode to the configured format (no resize, no crop).
   let pipeline = sharp(imageBytes, { failOn: "none" });
-  if (w >= final.width && h >= final.height) {
-    // Deterministic centered crop — no scaling at all.
-    pipeline = pipeline.extract({
-      left: Math.floor((w - final.width) / 2),
-      top: Math.floor((h - final.height) / 2),
-      width: final.width,
-      height: final.height,
-    });
-  } else {
-    // Native unexpectedly smaller than final → cover-fit (last resort).
-    pipeline = pipeline.resize(final.width, final.height, { fit: "cover", position: "centre" });
-  }
-
   if (outputFormat === "png") pipeline = pipeline.png();
   else if (outputFormat === "jpeg") pipeline = pipeline.jpeg({ quality: 90 });
   else pipeline = pipeline.webp({ quality: 90 });
 
   const buffer = await pipeline.toBuffer();
+  const meta = await sharp(buffer).metadata();
   const base64 = buffer.toString("base64");
-  return { buffer, base64, dataUrl: `data:${mimeType};base64,${base64}`, width: final.width, height: final.height, mimeType };
+  return {
+    buffer,
+    base64,
+    dataUrl: `data:${mimeType};base64,${base64}`,
+    width: meta.width ?? 0,
+    height: meta.height ?? 0,
+    mimeType,
+  };
 }

@@ -1,11 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AspectRatio, GenerationSettings } from "@/lib/domain";
-import {
-  estimateImageCostUsd,
-  finalSize,
-  getMaxInputProducts,
-  openAiNativeSize,
-} from "./provider-config";
+import { estimateImageCostUsd, getMaxInputProducts, openAiSize } from "./provider-config";
 import {
   generateImageWithOpenAI,
   OpenAIProviderError,
@@ -32,6 +27,7 @@ export type GenerationErrorCode =
   | "ASSET_IMAGE_UNAVAILABLE"
   | "OPENAI_MODEL_ACCESS_DENIED"
   | "OPENAI_BILLING_REQUIRED"
+  | "OPENAI_INVALID_PARAMETER"
   | "OPENAI_INVALID_REQUEST"
   | "OPENAI_CONTENT_POLICY"
   | "OPENAI_TIMEOUT"
@@ -50,6 +46,7 @@ const STATUS_BY_CODE: Record<GenerationErrorCode, number> = {
   ASSET_IMAGE_UNAVAILABLE: 422,
   OPENAI_MODEL_ACCESS_DENIED: 502,
   OPENAI_BILLING_REQUIRED: 402,
+  OPENAI_INVALID_PARAMETER: 502,
   OPENAI_INVALID_REQUEST: 502,
   OPENAI_CONTENT_POLICY: 422,
   OPENAI_TIMEOUT: 504,
@@ -74,6 +71,7 @@ const RETRYABLE_BY_CODE: Record<GenerationErrorCode, boolean> = {
   ASSET_IMAGE_UNAVAILABLE: false,
   OPENAI_MODEL_ACCESS_DENIED: false,
   OPENAI_BILLING_REQUIRED: false,
+  OPENAI_INVALID_PARAMETER: false,
   OPENAI_INVALID_REQUEST: false,
   OPENAI_CONTENT_POLICY: false,
   OPENAI_TIMEOUT: true,
@@ -357,4 +355,4 @@ async function defaultPostProcess(
   return postProcessToFinal(bytes, ratio, format);
 }
 
-export { finalSize, openAiNativeSize };
+export { openAiSize };

@@ -15,9 +15,9 @@ import {
   estimateImageCostUsd,
   getMaxInputProducts,
   getReferenceLimit,
-  openAiNativeSize,
+  openAiSize,
+  OPENAI_SIZE_VALUES,
   parseImageProvider,
-  VALID_OPENAI_NATIVE_SIZES,
 } from "@/lib/services/image-adapter/provider-config";
 import { getImageAdapter } from "@/lib/services/image-adapter";
 
@@ -53,37 +53,39 @@ describe("provider selection (server-authoritative, no silent fallback)", () => 
   });
 });
 
-describe("native sizes are always valid Images Edit sizes", () => {
-  it("maps each aspect to one of the supported native sizes", () => {
+describe("exact direct GPT Image 2 sizes (no native+crop)", () => {
+  it("maps each primary ratio to the exact requested size", () => {
+    expect(openAiSize("1:1").size).toBe("1024x1024");
+    expect(openAiSize("4:5").size).toBe("1024x1280");
+    expect(openAiSize("16:9").size).toBe("1536x864");
+    expect(openAiSize("9:16").size).toBe("864x1536");
+  });
+  it("every size has edges that are multiples of 16", () => {
     for (const ratio of ["1:1", "4:5", "16:9", "9:16", "4:3", "3:2", "2:3"] as const) {
-      expect(VALID_OPENAI_NATIVE_SIZES).toContain(openAiNativeSize(ratio).size);
+      const s = openAiSize(ratio);
+      expect(s.width % 16).toBe(0);
+      expect(s.height % 16).toBe(0);
+      expect(OPENAI_SIZE_VALUES).toContain(s.size);
     }
-    expect(openAiNativeSize("1:1").size).toBe("1024x1024");
-    expect(openAiNativeSize("4:5").size).toBe("1024x1536");
-    expect(openAiNativeSize("16:9").size).toBe("1536x1024");
-    expect(openAiNativeSize("9:16").size).toBe("1024x1536");
   });
 });
 
-describe("postProcessToFinal (sharp) → exact final dimensions", () => {
-  async function native(ratio: "1:1" | "4:5" | "16:9" | "9:16") {
-    const n = openAiNativeSize(ratio);
-    return sharp({ create: { width: n.width, height: n.height, channels: 3, background: { r: 10, g: 120, b: 110 } } })
-      .webp()
-      .toBuffer();
-  }
-  const expected: Record<string, { width: number; height: number }> = {
-    "1:1": { width: 1024, height: 1024 },
-    "4:5": { width: 1024, height: 1280 },
-    "16:9": { width: 1536, height: 864 },
-    "9:16": { width: 864, height: 1536 },
-  };
-  for (const ratio of ["1:1", "4:5", "16:9", "9:16"] as const) {
-    it(`crops ${ratio} to ${expected[ratio].width}x${expected[ratio].height}`, async () => {
-      const out = await postProcessToFinal(await native(ratio), ratio, "webp");
-      expect({ width: out.width, height: out.height }).toEqual(expected[ratio]);
+describe("postProcessToFinal (sharp) → no crop, exact dimensions preserved", () => {
+  const sizes: Array<["1:1" | "4:5" | "16:9" | "9:16", number, number]> = [
+    ["1:1", 1024, 1024],
+    ["4:5", 1024, 1280],
+    ["16:9", 1536, 864],
+    ["9:16", 864, 1536],
+  ];
+  for (const [ratio, w, h] of sizes) {
+    it(`keeps ${ratio} at ${w}x${h} (no crop / no stretch)`, async () => {
+      const input = await sharp({ create: { width: w, height: h, channels: 3, background: { r: 10, g: 120, b: 110 } } })
+        .webp()
+        .toBuffer();
+      const out = await postProcessToFinal(input, ratio, "webp");
+      expect({ width: out.width, height: out.height }).toEqual({ width: w, height: h });
       const meta = await sharp(out.buffer).metadata();
-      expect({ width: meta.width, height: meta.height }).toEqual(expected[ratio]);
+      expect({ width: meta.width, height: meta.height }).toEqual({ width: w, height: h });
       expect(out.mimeType).toBe("image/webp");
     });
   }
@@ -97,22 +99,26 @@ describe("input ordering + validation", () => {
 });
 
 describe("generateImageWithOpenAI (mocked client)", () => {
-  it("sends a valid native size + input_fidelity high + ordered images", async () => {
+  it("sends the exact size, omits input_fidelity + background, orders images", async () => {
     let body: Record<string, unknown> = {};
     const out = await generateImageWithOpenAI(okClient((b) => (body = b)), CONFIG, {
       prompt: "PROMPT",
       aspectRatio: "4:5",
       references: refs(),
     });
-    expect(body.size).toBe("1024x1536");
-    expect(VALID_OPENAI_NATIVE_SIZES).toContain(body.size as string);
-    expect(body.input_fidelity).toBe("high");
+    expect(body.size).toBe("1024x1280");
+    expect(OPENAI_SIZE_VALUES).toContain(body.size as string);
+    expect("input_fidelity" in body).toBe(false);
+    expect("background" in body).toBe(false);
     expect(body.quality).toBe("medium");
+    expect(body.output_format).toBe("webp");
     expect(body.n).toBe(1);
     expect(body.image).toEqual(["loc-bytes", "prod-bytes", "logo-bytes"]);
-    expect(out.nativeSize).toBe("1024x1536");
+    // No unsupported request properties — only documented edit fields.
+    expect(Object.keys(body).sort()).toEqual(["image", "model", "n", "output_format", "prompt", "quality", "size"]);
+    expect(out.nativeSize).toBe("1024x1280");
     expect(out.nativeWidth).toBe(1024);
-    expect(out.inputFidelity).toBe("high");
+    expect(out.inputFidelity).toBe("automatic-high");
     expect(out.requestId).toBe("req_123");
   });
 
@@ -170,6 +176,7 @@ describe("classifyProviderError (safe codes)", () => {
     [{ status: 429, code: "insufficient_quota" }, "OPENAI_BILLING_REQUIRED"],
     [{ status: 402 }, "OPENAI_BILLING_REQUIRED"],
     [{ status: 400, message: "rejected by the safety system" }, "OPENAI_CONTENT_POLICY"],
+    [{ status: 400, param: "input_fidelity" }, "OPENAI_INVALID_PARAMETER"],
     [{ status: 400, message: "bad parameter" }, "OPENAI_INVALID_REQUEST"],
     [{ name: "AbortError" }, "OPENAI_TIMEOUT"],
     [{ status: 504 }, "OPENAI_TIMEOUT"],

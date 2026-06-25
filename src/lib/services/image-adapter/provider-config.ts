@@ -25,50 +25,28 @@ export function parseImageProvider(raw: string): ImageProvider {
 }
 
 /**
- * Sizes the Images Edit API actually accepts. We never send anything else.
+ * Exact output sizes sent to GPT Image 2 per aspect ratio. GPT Image 2 supports
+ * flexible sizes whose edges are multiples of 16 and that meet its pixel/aspect
+ * constraints, so these are the DIRECT provider sizes — we never request a larger
+ * size and center-crop afterwards (which could drop important products/scene).
  */
-export const VALID_OPENAI_NATIVE_SIZES = ["auto", "1024x1024", "1536x1024", "1024x1536"] as const;
-export type OpenAINativeSize = (typeof VALID_OPENAI_NATIVE_SIZES)[number];
-
-/**
- * Provider-native size REQUESTED FROM OpenAI per aspect ratio — must be one of
- * {@link VALID_OPENAI_NATIVE_SIZES}. Portrait ratios use 1024x1536, landscape use
- * 1536x1024, square uses 1024x1024.
- */
-const OPENAI_NATIVE_SIZES: Record<AspectRatio, { width: number; height: number; size: OpenAINativeSize }> = {
+export const OPENAI_SIZES: Record<AspectRatio, { width: number; height: number; size: string }> = {
   "1:1": { width: 1024, height: 1024, size: "1024x1024" },
-  "4:5": { width: 1024, height: 1536, size: "1024x1536" },
-  "16:9": { width: 1536, height: 1024, size: "1536x1024" },
-  "9:16": { width: 1024, height: 1536, size: "1024x1536" },
-  // Secondary ratios (not in the primary workflow) → nearest valid native size.
-  "4:3": { width: 1536, height: 1024, size: "1536x1024" },
+  "4:5": { width: 1024, height: 1280, size: "1024x1280" },
+  "16:9": { width: 1536, height: 864, size: "1536x864" },
+  "9:16": { width: 864, height: 1536, size: "864x1536" },
+  // Secondary ratios (not in the primary workflow) — also multiples of 16.
+  "4:3": { width: 1024, height: 768, size: "1024x768" },
   "3:2": { width: 1536, height: 1024, size: "1536x1024" },
   "2:3": { width: 1024, height: 1536, size: "1024x1536" },
 };
 
-/**
- * The application's EXACT requested final dimensions after server-side
- * post-processing (a deterministic centered crop of the native image — never an
- * upscale or stretch).
- */
-const FINAL_SIZES: Record<AspectRatio, { width: number; height: number }> = {
-  "1:1": { width: 1024, height: 1024 },
-  "4:5": { width: 1024, height: 1280 },
-  "16:9": { width: 1536, height: 864 },
-  "9:16": { width: 864, height: 1536 },
-  // Secondary ratios → cropped from their native size.
-  "4:3": { width: 1536, height: 1152 },
-  "3:2": { width: 1536, height: 1024 },
-  "2:3": { width: 1024, height: 1536 },
-};
-
-export function openAiNativeSize(ratio: AspectRatio): { width: number; height: number; size: OpenAINativeSize } {
-  return OPENAI_NATIVE_SIZES[ratio] ?? OPENAI_NATIVE_SIZES["1:1"];
+export function openAiSize(ratio: AspectRatio): { width: number; height: number; size: string } {
+  return OPENAI_SIZES[ratio] ?? OPENAI_SIZES["1:1"];
 }
 
-export function finalSize(ratio: AspectRatio): { width: number; height: number } {
-  return FINAL_SIZES[ratio] ?? FINAL_SIZES["1:1"];
-}
+/** Every size string we ever send to OpenAI (used by verification tests). */
+export const OPENAI_SIZE_VALUES = Object.values(OPENAI_SIZES).map((s) => s.size);
 
 /**
  * Maximum number of selected PRODUCTS sent as inputs, to bound cost / request
@@ -90,8 +68,12 @@ export function getReferenceLimit(): number {
 export const DEFAULT_OPENAI_MODEL = "gpt-image-2";
 export const DEFAULT_OPENAI_QUALITY = "medium";
 export const DEFAULT_OPENAI_OUTPUT_FORMAT = "webp";
-/** High input fidelity preserves product geometry, materials, branding + logo lettering. */
-export const OPENAI_INPUT_FIDELITY = "high";
+/**
+ * GPT Image 2 processes image inputs at high fidelity automatically, so we do NOT
+ * send an `input_fidelity` parameter (it is invalid for gpt-image-2). Recorded as
+ * result metadata only — never an employee control.
+ */
+export const OPENAI_INPUT_FIDELITY_METADATA = "automatic-high";
 
 /**
  * Rough internal cost estimate (USD) per image from configuration — internal/admin

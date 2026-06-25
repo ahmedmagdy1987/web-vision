@@ -9,12 +9,7 @@ import {
   type GenerationRequestInput,
   type ResolvedRef,
 } from "@/lib/services/image-adapter/generation-orchestrator";
-import {
-  finalSize,
-  openAiNativeSize,
-  VALID_OPENAI_NATIVE_SIZES,
-  type OpenAINativeSize,
-} from "@/lib/services/image-adapter/provider-config";
+import { openAiSize, OPENAI_SIZE_VALUES } from "@/lib/services/image-adapter/provider-config";
 import type { OpenAIImagesClient, OpenAIServerConfig, PostProcessedImage } from "@/lib/services/image-adapter/openai-server";
 
 const CONFIG: OpenAIServerConfig = { apiKey: "k", model: "gpt-image-2", quality: "medium", outputFormat: "webp" };
@@ -74,7 +69,7 @@ const fakePostProcess = async (
   ratio: GenerationSettings["aspectRatio"],
   format: OpenAIServerConfig["outputFormat"],
 ): Promise<PostProcessedImage> => {
-  const f = finalSize(ratio);
+  const f = openAiSize(ratio);
   return {
     buffer: Buffer.from("x"),
     base64: "eA==",
@@ -97,22 +92,15 @@ describe("validateGenerationInput", () => {
   });
 });
 
-describe("native sizes never exceed the supported set", () => {
-  it("every aspect maps to a VALID Images Edit size", () => {
+describe("exact direct sizes are sent to OpenAI (no native+crop)", () => {
+  it("maps each primary ratio to its exact requested size", () => {
+    expect(openAiSize("1:1").size).toBe("1024x1024");
+    expect(openAiSize("4:5").size).toBe("1024x1280");
+    expect(openAiSize("16:9").size).toBe("1536x864");
+    expect(openAiSize("9:16").size).toBe("864x1536");
     for (const ratio of ["1:1", "4:5", "16:9", "9:16", "4:3", "3:2", "2:3"] as const) {
-      const size = openAiNativeSize(ratio).size as OpenAINativeSize;
-      expect(VALID_OPENAI_NATIVE_SIZES).toContain(size);
+      expect(OPENAI_SIZE_VALUES).toContain(openAiSize(ratio).size);
     }
-    expect(openAiNativeSize("1:1").size).toBe("1024x1024");
-    expect(openAiNativeSize("4:5").size).toBe("1024x1536");
-    expect(openAiNativeSize("16:9").size).toBe("1536x1024");
-    expect(openAiNativeSize("9:16").size).toBe("1024x1536");
-  });
-  it("final sizes match the application's requested dimensions", () => {
-    expect(finalSize("1:1")).toEqual({ width: 1024, height: 1024 });
-    expect(finalSize("4:5")).toEqual({ width: 1024, height: 1280 });
-    expect(finalSize("16:9")).toEqual({ width: 1536, height: 864 });
-    expect(finalSize("9:16")).toEqual({ width: 864, height: 1536 });
   });
 });
 
@@ -147,17 +135,17 @@ describe("runOpenAIGeneration", () => {
 
     // input ordering + valid native size + high fidelity to OpenAI
     expect(body.image).toEqual(["loc-bytes", "prod-bytes", "logo-bytes"]);
-    expect(body.size).toBe("1024x1536");
-    expect(VALID_OPENAI_NATIVE_SIZES).toContain(body.size as OpenAINativeSize);
-    expect(body.input_fidelity).toBe("high");
+    expect(body.size).toBe("1024x1280");
+    expect(OPENAI_SIZE_VALUES).toContain(body.size as string);
+    expect("input_fidelity" in body).toBe(false);
 
     const persisted = (gw.persistResult as ReturnType<typeof vi.fn>).mock.calls[0][1];
     expect(persisted).toMatchObject({
       provider: "openai",
       model: "gpt-image-2",
       quality: "medium",
-      inputFidelity: "high",
-      nativeSize: "1024x1536",
+      inputFidelity: "automatic-high",
+      nativeSize: "1024x1280",
       finalWidth: 1024,
       finalHeight: 1280,
       aspectRatio: "4:5",
@@ -228,6 +216,25 @@ describe("runOpenAIGeneration", () => {
       retryable: false,
     });
     expect((gw.failJob as ReturnType<typeof vi.fn>).mock.calls[0][2]).toBe("OPENAI_MODEL_ACCESS_DENIED");
+  });
+
+  it("classifies a parameter-validation failure (OPENAI_INVALID_PARAMETER, not retryable, no retry)", async () => {
+    let calls = 0;
+    const gw = gateway();
+    const failing: OpenAIImagesClient = {
+      images: {
+        edit: async () => {
+          calls++;
+          throw Object.assign(new Error("Unknown parameter: 'input_fidelity'."), { status: 400, param: "input_fidelity" });
+        },
+      },
+    };
+    await expect(runOpenAIGeneration(deps(gw, failing), input())).rejects.toMatchObject({
+      code: "OPENAI_INVALID_PARAMETER",
+      retryable: false,
+    });
+    expect(calls).toBe(1); // 4xx validation → no retry
+    expect((gw.failJob as ReturnType<typeof vi.fn>).mock.calls[0][2]).toBe("OPENAI_INVALID_PARAMETER");
   });
 
   it("classifies a post-processing failure (IMAGE_POST_PROCESSING_FAILED) and skips upload", async () => {
