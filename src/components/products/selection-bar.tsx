@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Sparkles, X } from "lucide-react";
+import { Sparkles, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -9,9 +9,10 @@ interface SelectionBarProps {
   count: number;
   onClear: () => void;
   onOpenInStudio: () => void;
+  onDelete?: () => void;
 }
 
-export function SelectionBar({ count, onClear, onOpenInStudio }: SelectionBarProps) {
+export function SelectionBar({ count, onClear, onOpenInStudio, onDelete }: SelectionBarProps) {
   const visible = count > 0;
   return (
     <div
@@ -39,6 +40,12 @@ export function SelectionBar({ count, onClear, onOpenInStudio }: SelectionBarPro
             <X />
             Clear
           </Button>
+          {onDelete && (
+            <Button variant="outline" size="sm" className="text-destructive" onClick={onDelete}>
+              <Trash2 />
+              Delete
+            </Button>
+          )}
           <Button size="sm" onClick={onOpenInStudio}>
             <Sparkles />
             Use in mockup

@@ -1,4 +1,4 @@
-import type { ID, ImageAsset, Timestamps } from "./common";
+import type { EntityStatus, ID, ImageAsset, Timestamps } from "./common";
 
 export type LocationUsage = "indoor" | "outdoor";
 
@@ -16,6 +16,9 @@ export interface Location extends Timestamps {
   preservationInstructions?: string;
   /** Whether this location was saved for reuse. */
   saved: boolean;
+  /** active | archived. Archived locations are hidden from new-generation pickers
+   *  but stay available to historical Gallery results. Defaults to active. */
+  status?: EntityStatus;
 }
 
 export const LOCATION_USAGE_LABELS: Record<LocationUsage, string> = {

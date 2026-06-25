@@ -176,6 +176,7 @@ export function locationFromRow(loc: LocationRow, assets: LocationAssetRow[], si
     description: loc.description ?? undefined,
     preservationInstructions: loc.preservation_instructions ?? undefined,
     saved: true,
+    status: loc.status ?? "active",
     createdAt: loc.created_at,
     updatedAt: loc.updated_at,
   };

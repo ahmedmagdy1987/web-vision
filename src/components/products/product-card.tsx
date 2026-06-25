@@ -1,10 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Archive, Images, MoreVertical, Package, Pencil, RotateCcw, Sparkles } from "lucide-react";
+import { Archive, Images, MoreVertical, Package, Pencil, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import type { Brand, Product } from "@/lib/domain";
 import { PRODUCT_USAGE_LABELS } from "@/lib/domain";
+import { useResults } from "@/lib/hooks";
+import { productRepository } from "@/lib/repositories";
+import { isProductReferenced } from "@/lib/services/asset-references";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/sonner";
+import { DeleteAssetDialog } from "@/components/common/delete-asset-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -69,14 +74,36 @@ export function ProductCard({
     },
     [images.length],
   );
-  const lightbox = (
-    <ImageLightbox
-      open={lightboxOpen}
-      onOpenChange={setLightboxOpen}
-      images={images}
-      index={lightboxIndex}
-      onIndexChange={setLightboxIndex}
-    />
+  const results = useResults();
+  const referenced = isProductReferenced(results, product.id);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+
+  const overlays = (
+    <>
+      <ImageLightbox
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        images={images}
+        index={lightboxIndex}
+        onIndexChange={setLightboxIndex}
+      />
+      <DeleteAssetDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        assetType="Product"
+        name={product.name}
+        thumbnailUrl={product.mainImage?.url}
+        referenced={referenced}
+        onArchive={() => {
+          productRepository.setStatus(product.id, "archived");
+          toast.success(`${product.name} removed from active library`);
+        }}
+        onDelete={async () => {
+          await productRepository.deleteProduct(product.id);
+          toast.success(`${product.name} deleted`);
+        }}
+      />
+    </>
   );
 
   const ActionsMenu = (
@@ -113,6 +140,10 @@ export function ProductCard({
               Archive
             </>
           )}
+        </DropdownMenuItem>
+        <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
+          <Trash2 />
+          Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -170,7 +201,7 @@ export function ProductCard({
         </div>
         {ActionsMenu}
       </Card>
-      {lightbox}
+      {overlays}
       </>
     );
   }
@@ -271,7 +302,7 @@ export function ProductCard({
         )}
       </div>
     </Card>
-    {lightbox}
+    {overlays}
     </>
   );
 }

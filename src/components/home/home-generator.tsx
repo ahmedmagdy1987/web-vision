@@ -255,11 +255,13 @@ export function HomeGenerator() {
     thumbnailUrl: p.mainImage?.url,
     subtitle: p.category,
   }));
-  const locationItems: PickerItem[] = locations.map((l) => ({
-    id: l.id,
-    name: l.name,
-    thumbnailUrl: (l.images.find((i) => i.id === l.mainImageId) ?? l.images[0])?.url,
-  }));
+  const locationItems: PickerItem[] = locations
+    .filter((l) => l.status !== "archived")
+    .map((l) => ({
+      id: l.id,
+      name: l.name,
+      thumbnailUrl: (l.images.find((i) => i.id === l.mainImageId) ?? l.images[0])?.url,
+    }));
 
   const generateButton = (
     <Button size="lg" onClick={handleGenerate} disabled={!canGenerate} className="w-full">

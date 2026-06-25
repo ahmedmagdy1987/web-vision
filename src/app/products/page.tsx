@@ -13,10 +13,13 @@ import {
   useIsMobile,
   useProducts,
   useProjects,
+  useResults,
 } from "@/lib/hooks";
 import { productRepository } from "@/lib/repositories";
+import { isProductReferenced } from "@/lib/services/asset-references";
 import { studioPrefill } from "@/lib/store/studio-draft";
 import { toast } from "@/components/ui/sonner";
+import { BulkDeleteDialog, type BulkDeleteItem } from "@/components/common/bulk-delete-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,6 +53,7 @@ export default function ProductsPage() {
   const router = useRouter();
 
   const products = useProducts();
+  const results = useResults();
   const brands = useBrands();
   const projects = useProjects();
   const { brand: activeBrand } = useActiveBrand();
@@ -60,6 +64,7 @@ export default function ProductsPage() {
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Product | null>(null);
   const [archiveTarget, setArchiveTarget] = React.useState<Product | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
 
   const brandsById = React.useMemo(() => new Map(brands.map((b) => [b.id, b])), [brands]);
 
@@ -92,6 +97,20 @@ export default function ProductsPage() {
   const visibleSelectedIds = React.useMemo(
     () => selectedIds.filter((id) => filteredIds.has(id)),
     [selectedIds, filteredIds],
+  );
+
+  const bulkItems: BulkDeleteItem[] = React.useMemo(
+    () =>
+      visibleSelectedIds
+        .map((id) => products.find((p) => p.id === id))
+        .filter((p): p is Product => Boolean(p))
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          thumbnailUrl: p.mainImage?.url,
+          referenced: isProductReferenced(results, p.id),
+        })),
+    [visibleSelectedIds, products, results],
   );
 
   const toggleSelect = (id: string) =>
@@ -275,6 +294,18 @@ export default function ProductsPage() {
         count={visibleSelectedIds.length}
         onClear={clearSelection}
         onOpenInStudio={() => openInStudio(visibleSelectedIds)}
+        onDelete={() => visibleSelectedIds.length > 0 && setBulkDeleteOpen(true)}
+      />
+
+      <BulkDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        assetTypePlural="products"
+        items={bulkItems}
+        archive={(id) => productRepository.setStatus(id, "archived")}
+        remove={(id) => productRepository.deleteProduct(id)}
+        refresh={() => productRepository.refresh()}
+        onResult={(failed) => setSelectedIds(failed)}
       />
 
       <ProductFormDialog

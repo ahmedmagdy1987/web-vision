@@ -1,4 +1,4 @@
-import type { ID, Location } from "@/lib/domain";
+import type { EntityStatus, ID, Location } from "@/lib/domain";
 import { newId, nowIso } from "@/lib/ids";
 import { buildSeed } from "@/lib/seed/seed-data";
 import { ObservableCollection } from "./observable-store";
@@ -40,6 +40,17 @@ export class LocationRepository extends ObservableCollection<Location> implement
   setMainImage(id: ID, imageId: ID): Location | undefined {
     return this.update(id, (l) => ({ ...l, mainImageId: imageId, updatedAt: nowIso() }));
   }
+
+  setStatus(id: ID, status: EntityStatus): Location | undefined {
+    return this.update(id, (l) => ({ ...l, status, updatedAt: nowIso() }));
+  }
+
+  async deleteLocation(id: ID): Promise<void> {
+    this.remove(id);
+  }
+
+  // The local store is the source of truth (no remote) — already current.
+  async refresh(): Promise<void> {}
 }
 
 export const locationRepository = new LocationRepository();

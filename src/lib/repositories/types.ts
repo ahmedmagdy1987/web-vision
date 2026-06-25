@@ -10,6 +10,7 @@
  */
 import type {
   Brand,
+  EntityStatus,
   GenerationJob,
   GenerationResult,
   ID,
@@ -106,6 +107,11 @@ export interface ProductRepositoryApi extends ReadableStore<Product> {
   addProduct(input: ProductInput): Product;
   updateProduct(id: ID, input: Partial<ProductInput>): Product | undefined;
   setStatus(id: ID, status: Product["status"]): Product | undefined;
+  /** Permanently delete a product + its Storage objects. Only for products NOT
+   *  referenced by history; resolves on success, rejects on DB failure. */
+  deleteProduct(id: ID): Promise<void>;
+  /** Reload the authoritative collection from the backend. */
+  refresh(): Promise<void>;
 }
 
 export interface LocationRepositoryApi extends ReadableStore<Location> {
@@ -114,6 +120,13 @@ export interface LocationRepositoryApi extends ReadableStore<Location> {
   addLocation(input: LocationInput): Location;
   updateLocation(id: ID, input: Partial<LocationInput>): Location | undefined;
   setMainImage(id: ID, imageId: ID): Location | undefined;
+  /** Archive / restore (hides from new-generation pickers; preserves history). */
+  setStatus(id: ID, status: EntityStatus): Location | undefined;
+  /** Permanently delete a location + its Storage objects. Only for locations NOT
+   *  referenced by history; resolves on success, rejects on DB failure. */
+  deleteLocation(id: ID): Promise<void>;
+  /** Reload the authoritative collection from the backend. */
+  refresh(): Promise<void>;
 }
 
 export interface JobRepositoryApi extends ReadableStore<GenerationJob> {

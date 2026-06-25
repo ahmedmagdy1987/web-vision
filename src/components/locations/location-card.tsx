@@ -1,9 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { FolderKanban, Images, MapPin, MoreVertical, Pencil, Sparkles } from "lucide-react";
+import { Archive, FolderKanban, Images, MapPin, MoreVertical, Pencil, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import type { Location } from "@/lib/domain";
 import { LOCATION_USAGE_LABELS } from "@/lib/domain";
+import { useResults } from "@/lib/hooks";
+import { locationRepository } from "@/lib/repositories";
+import { isLocationReferenced } from "@/lib/services/asset-references";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,10 +14,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "@/components/ui/sonner";
 import { AspectFrame } from "@/components/common/aspect-frame";
 import { AssetImage } from "@/components/common/asset-image";
+import { DeleteAssetDialog } from "@/components/common/delete-asset-dialog";
 import { ImageLightbox } from "@/components/common/image-lightbox";
 
 interface LocationCardProps {
@@ -35,10 +41,17 @@ export function LocationCard({ location, projectName, onEdit, onUseInStudio }: L
   }, [location.images, location.mainImageId, location.name]);
   const [lightboxOpen, setLightboxOpen] = React.useState(false);
   const [lightboxIndex, setLightboxIndex] = React.useState(0);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const archived = location.status === "archived";
+  const referenced = isLocationReferenced(useResults(), location.id);
 
   return (
     <>
-    <Card className="group relative gap-0 overflow-hidden p-0 transition-all hover:-translate-y-0.5 hover:border-brand-border hover:shadow-md">
+    <Card
+      className={`group relative gap-0 overflow-hidden p-0 transition-all hover:-translate-y-0.5 hover:border-brand-border hover:shadow-md${
+        archived ? " opacity-60" : ""
+      }`}
+    >
       <div className="relative">
         <button
           type="button"
@@ -72,6 +85,34 @@ export function LocationCard({ location, projectName, onEdit, onUseInStudio }: L
               <DropdownMenuItem onSelect={() => onEdit(location)}>
                 <Pencil />
                 Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => {
+                  const next = archived ? "active" : "archived";
+                  locationRepository.setStatus(location.id, next);
+                  toast.success(
+                    next === "active"
+                      ? `${location.name} restored`
+                      : `${location.name} removed from active library`,
+                  );
+                }}
+              >
+                {archived ? (
+                  <>
+                    <RotateCcw />
+                    Restore
+                  </>
+                ) : (
+                  <>
+                    <Archive />
+                    Archive
+                  </>
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
+                <Trash2 />
+                Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -115,6 +156,22 @@ export function LocationCard({ location, projectName, onEdit, onUseInStudio }: L
       images={images}
       index={lightboxIndex}
       onIndexChange={setLightboxIndex}
+    />
+    <DeleteAssetDialog
+      open={deleteOpen}
+      onOpenChange={setDeleteOpen}
+      assetType="Location"
+      name={location.name}
+      thumbnailUrl={main?.url}
+      referenced={referenced}
+      onArchive={() => {
+        locationRepository.setStatus(location.id, "archived");
+        toast.success(`${location.name} removed from active library`);
+      }}
+      onDelete={async () => {
+        await locationRepository.deleteLocation(location.id);
+        toast.success(`${location.name} deleted`);
+      }}
     />
     </>
   );

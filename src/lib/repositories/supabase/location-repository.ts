@@ -1,4 +1,4 @@
-import type { ID, Location } from "@/lib/domain";
+import type { EntityStatus, ID, Location } from "@/lib/domain";
 import { newId, nowIso } from "@/lib/ids";
 import { locationAssetPath } from "@/lib/storage/paths";
 import { createSignedUrls, dataUrlToBlob, removeObjects, uploadObject } from "@/lib/storage/storage-service";
@@ -6,6 +6,7 @@ import type { LocationAssetRow, LocationRow } from "@/lib/supabase/database.type
 import { SupabaseCollection } from "./collection";
 import { db, getActiveOrgId, getActiveUserId, requireActiveOrgId } from "./context";
 import { locationFromRow, type SignUrl } from "./mappers";
+import { reportRepositoryError } from "../error-reporter";
 import type { LocationInput, LocationRepositoryApi } from "../types";
 
 export class SupabaseLocationRepository extends SupabaseCollection<Location> implements LocationRepositoryApi {
@@ -169,5 +170,51 @@ export class SupabaseLocationRepository extends SupabaseCollection<Location> imp
       rollback: () => this.cacheReplace(id, prev),
       context: "set main image",
     });
+  }
+
+  setStatus(id: ID, status: EntityStatus): Location | undefined {
+    const prev = this.getById(id);
+    if (!prev) return undefined;
+    return this.optimistic({
+      apply: () => this.cacheUpdate(id, (l) => ({ ...l, status, updatedAt: nowIso() })),
+      persist: async () => {
+        const { error } = await db().from("locations").update({ status }).eq("id", id);
+        if (error) throw error;
+      },
+      rollback: () => this.cacheReplace(id, prev),
+      context: "archive location",
+    });
+  }
+
+  /** Hard delete: remove location_assets rows + Storage objects + the location row.
+   *  Awaitable; rolls the cache back and rethrows on a DB failure. */
+  async deleteLocation(id: ID): Promise<void> {
+    const prev = this.getById(id);
+    if (!prev) return;
+    this.cacheRemove(id);
+    try {
+      const supabase = db();
+      const { data: assetRows } = await supabase
+        .from("location_assets")
+        .select("storage_path")
+        .eq("location_id", id);
+      const paths = ((assetRows ?? []) as { storage_path: string }[]).map((a) => a.storage_path);
+      await supabase.from("location_assets").delete().eq("location_id", id);
+      const { error } = await supabase.from("locations").delete().eq("id", id);
+      if (error) throw error;
+      if (paths.length) {
+        const { failed } = await removeObjects(supabase, paths);
+        if (failed.length) {
+          reportRepositoryError({
+            context: `clean up ${failed.length} storage object(s) for the deleted location`,
+            error: new Error("Storage cleanup incomplete"),
+            reverted: false,
+          });
+        }
+      }
+    } catch (e) {
+      this.cacheAppend(prev);
+      throw e;
+    }
   }
 }

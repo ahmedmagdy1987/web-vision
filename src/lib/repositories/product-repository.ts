@@ -44,6 +44,13 @@ export class ProductRepository extends ObservableCollection<Product> implements 
   setStatus(id: ID, status: Product["status"]): Product | undefined {
     return this.update(id, (p) => ({ ...p, status, updatedAt: nowIso() }));
   }
+
+  async deleteProduct(id: ID): Promise<void> {
+    this.remove(id);
+  }
+
+  // The local store is the source of truth (no remote) — already current.
+  async refresh(): Promise<void> {}
 }
 
 export const productRepository = new ProductRepository();
