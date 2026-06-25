@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { AspectRatio, GenerationSettings } from "@/lib/domain";
 import {
   estimateImageCostUsd,
@@ -231,7 +232,7 @@ export async function runOpenAIGeneration(
 
     const final = await postProcess(Buffer.from(native.base64, "base64"), input.settings.aspectRatio, deps.config.outputFormat);
 
-    const resultId = `${jobId}-0`;
+    const resultId = randomUUID();
     const storagePath = await deps.gateway.uploadResult(ctx, jobId, resultId, final);
 
     await deps.gateway.persistResult(ctx, {

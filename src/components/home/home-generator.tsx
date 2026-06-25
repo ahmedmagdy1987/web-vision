@@ -8,7 +8,9 @@ import { VISUAL_STYLE_OPTIONS } from "@/lib/domain";
 import { useBrands, useLocations, useProducts } from "@/lib/hooks";
 import { buildGenerationRequest, type ComposeInput } from "@/lib/services/instruction-composer";
 import { startGeneration } from "@/lib/services/generation-service";
+import { requestOpenAIGeneration } from "@/lib/services/generation-client";
 import { validateGenerationRequest } from "@/lib/services/validation";
+import { useAuth } from "@/lib/auth/auth-context";
 import { studioPrefill, type StudioPrefill } from "@/lib/store/studio-draft";
 import { AssetImage } from "@/components/common/asset-image";
 import { AspectFrame } from "@/components/common/aspect-frame";
@@ -53,9 +55,26 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export function HomeGenerator() {
   const router = useRouter();
+  const { activeOrg } = useAuth();
   const brands = useBrands();
   const products = useProducts();
   const locations = useLocations();
+
+  // Which generation flow to use — server-authoritative (no NEXT_PUBLIC). The
+  // client only learns the mode name; the API key never reaches the browser.
+  const [providerMode, setProviderMode] = React.useState<"mock" | "openai">("mock");
+  React.useEffect(() => {
+    let active = true;
+    fetch("/api/generation-mode")
+      .then((r) => r.json())
+      .then((d: { provider?: string }) => {
+        if (active && (d.provider === "openai" || d.provider === "mock")) setProviderMode(d.provider);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const [prefill] = React.useState(takePrefillOnce);
   const [state, dispatch] = React.useReducer(studioReducer, prefill, (p) => {
@@ -155,6 +174,28 @@ export function HomeGenerator() {
     setGenerating(true);
     setJob(null);
     try {
+      if (providerMode === "openai") {
+        // Server-side OpenAI generation: submit ONLY trusted IDs + settings. The
+        // server resolves assets, calls OpenAI and persists the Gallery result.
+        if (!activeOrg) {
+          toast.error("No active organization.");
+          return;
+        }
+        const outcome = await requestOpenAIGeneration({
+          organizationId: activeOrg.id,
+          brandId: brand.id,
+          logoId: logo.id,
+          productIds: selectedProductIds,
+          locationId: selectedLocation.id,
+          settings: { ...finalRequest.settings, outputCount: 1 },
+          notes: state.notes.trim() || undefined,
+          idempotencyKey: crypto.randomUUID(),
+        });
+        toast.success("Mockup ready");
+        router.push(`/gallery/${outcome.resultId}`);
+        return;
+      }
+
       const finished = await startGeneration({ request: finalRequest, snapshot, onUpdate: setJob });
       if (finished.status === "completed" && finished.resultIds[0]) {
         toast.success("Mockup ready");
@@ -162,6 +203,8 @@ export function HomeGenerator() {
       } else if (finished.status === "failed") {
         toast.error(finished.error ?? "Generation failed");
       }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Generation failed");
     } finally {
       setGenerating(false);
     }
