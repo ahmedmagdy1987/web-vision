@@ -81,12 +81,18 @@ class SupabaseGenerationGateway implements GenerationGateway {
   }
 
   private async toRef(role: ResolvedRef["role"], id: string, name: string, storagePath: string, mimeType: string): Promise<ResolvedRef> {
-    const url = await createSignedUrl(this.sb, storagePath, SIGNED_URL_TTL);
-    const res = await fetch(url);
-    if (!res.ok) throw new GenerationError("NOT_FOUND", `Could not load the ${role} image.`);
-    const bytes = Buffer.from(await res.arrayBuffer());
-    const file = await toFile(bytes, `${role}-${id}`, { type: mimeType });
-    return { role, id, name, mimeType, file };
+    // The record exists; if its image can't be signed/fetched/converted, the
+    // asset image is unavailable (distinct from a missing record → NOT_FOUND).
+    try {
+      const url = await createSignedUrl(this.sb, storagePath, SIGNED_URL_TTL);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`http ${res.status}`);
+      const bytes = Buffer.from(await res.arrayBuffer());
+      const file = await toFile(bytes, `${role}-${id}`, { type: mimeType });
+      return { role, id, name, mimeType, file };
+    } catch {
+      throw new GenerationError("ASSET_IMAGE_UNAVAILABLE", `The ${role} image could not be prepared.`);
+    }
   }
 
   async loadLogo(ctx: GenerationContext, logoId: string, brandId: string): Promise<ResolvedRef | null> {

@@ -216,4 +216,55 @@ describe("runOpenAIGeneration", () => {
     const failArgs = (gw.failJob as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(String(failArgs[3])).not.toMatch(/sk-|api[_-]?key/i); // safe message only
   });
+
+  it("classifies a provider model-access failure (502 OPENAI_MODEL_ACCESS_DENIED, not retryable)", async () => {
+    const gw = gateway();
+    const failing: OpenAIImagesClient = {
+      images: { edit: async () => { throw Object.assign(new Error("no access"), { status: 404, code: "model_not_found" }); } },
+    };
+    await expect(runOpenAIGeneration(deps(gw, failing, { maxAttempts: 1 }), input())).rejects.toMatchObject({
+      code: "OPENAI_MODEL_ACCESS_DENIED",
+      status: 502,
+      retryable: false,
+    });
+    expect((gw.failJob as ReturnType<typeof vi.fn>).mock.calls[0][2]).toBe("OPENAI_MODEL_ACCESS_DENIED");
+  });
+
+  it("classifies a post-processing failure (IMAGE_POST_PROCESSING_FAILED) and skips upload", async () => {
+    const gw = gateway();
+    const badPostProcess = async () => {
+      throw new Error("sharp boom");
+    };
+    await expect(runOpenAIGeneration(deps(gw, okClient(), { postProcess: badPostProcess }), input())).rejects.toMatchObject({
+      code: "IMAGE_POST_PROCESSING_FAILED",
+    });
+    expect(gw.uploadResult).not.toHaveBeenCalled();
+  });
+
+  it("classifies a storage upload failure (RESULT_STORAGE_FAILED) and skips persistence", async () => {
+    const gw = gateway({ uploadResult: vi.fn(async () => { throw new Error("upload boom"); }) });
+    await expect(runOpenAIGeneration(deps(gw, okClient()), input())).rejects.toMatchObject({ code: "RESULT_STORAGE_FAILED" });
+    expect(gw.persistResult).not.toHaveBeenCalled();
+  });
+
+  it("classifies a persistence failure (RESULT_PERSISTENCE_FAILED) and does not complete", async () => {
+    const gw = gateway({ persistResult: vi.fn(async () => { throw new Error("db boom"); }) });
+    await expect(runOpenAIGeneration(deps(gw, okClient()), input())).rejects.toMatchObject({ code: "RESULT_PERSISTENCE_FAILED" });
+    expect(gw.completeJob).not.toHaveBeenCalled();
+  });
+
+  it("propagates an asset-image-unavailable error (422) before any paid call or job", async () => {
+    const edit = vi.fn();
+    const gw = gateway({
+      loadLocation: vi.fn(async () => {
+        throw new GenerationError("ASSET_IMAGE_UNAVAILABLE", "The location image could not be prepared.");
+      }),
+    });
+    await expect(runOpenAIGeneration(deps(gw, { images: { edit } }), input())).rejects.toMatchObject({
+      status: 422,
+      code: "ASSET_IMAGE_UNAVAILABLE",
+    });
+    expect(edit).not.toHaveBeenCalled();
+    expect(gw.createJob).not.toHaveBeenCalled();
+  });
 });

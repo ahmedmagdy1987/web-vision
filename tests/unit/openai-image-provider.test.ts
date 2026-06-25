@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import sharp from "sharp";
 import {
+  classifyProviderError,
   generateImageWithOpenAI,
   isRetryableProviderError,
+  OpenAIProviderError,
   orderReferences,
   postProcessToFinal,
   type OpenAIImagesClient,
@@ -142,7 +144,7 @@ describe("generateImageWithOpenAI (mocked client)", () => {
     };
     await expect(
       generateImageWithOpenAI(client, CONFIG, { prompt: "P", aspectRatio: "1:1", references: refs() }, { maxAttempts: 3 }),
-    ).rejects.toThrow();
+    ).rejects.toBeInstanceOf(OpenAIProviderError);
     expect(calls).toBe(1);
   });
 
@@ -158,6 +160,30 @@ describe("generateImageWithOpenAI (mocked client)", () => {
     await expect(
       generateImageWithOpenAI(okClient(), CONFIG, { prompt: "P", aspectRatio: "1:1", references: refs() }, { signal: c.signal }),
     ).rejects.toThrow(/abort/i);
+  });
+});
+
+describe("classifyProviderError (safe codes)", () => {
+  const cases: Array<[Record<string, unknown>, string]> = [
+    [{ status: 404, code: "model_not_found" }, "OPENAI_MODEL_ACCESS_DENIED"],
+    [{ status: 401 }, "OPENAI_MODEL_ACCESS_DENIED"],
+    [{ status: 429, code: "insufficient_quota" }, "OPENAI_BILLING_REQUIRED"],
+    [{ status: 402 }, "OPENAI_BILLING_REQUIRED"],
+    [{ status: 400, message: "rejected by the safety system" }, "OPENAI_CONTENT_POLICY"],
+    [{ status: 400, message: "bad parameter" }, "OPENAI_INVALID_REQUEST"],
+    [{ name: "AbortError" }, "OPENAI_TIMEOUT"],
+    [{ status: 504 }, "OPENAI_TIMEOUT"],
+    [{ status: 500 }, "PROVIDER_ERROR"],
+    [{ status: 429 }, "PROVIDER_ERROR"],
+  ];
+  for (const [shape, expected] of cases) {
+    it(`${JSON.stringify(shape)} → ${expected}`, () => {
+      expect(classifyProviderError(Object.assign(new Error("e"), shape)).providerCode).toBe(expected);
+    });
+  }
+  it("never leaks a key in the safe message", () => {
+    const e = classifyProviderError(Object.assign(new Error("sk-secret-should-not-appear"), { status: 400 }));
+    expect(e.safeMessage).not.toMatch(/sk-/);
   });
 });
 

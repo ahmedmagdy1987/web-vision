@@ -34,8 +34,8 @@ const BodySchema = z
   })
   .strict();
 
-function err(status: number, message: string) {
-  return NextResponse.json({ error: message }, { status });
+function err(status: number, message: string, code?: string, retryable = false) {
+  return NextResponse.json({ error: message, code, retryable }, { status });
 }
 
 export async function POST(req: Request) {
@@ -97,8 +97,8 @@ export async function POST(req: Request) {
     );
     return NextResponse.json(outcome);
   } catch (e) {
-    if (e instanceof GenerationError) return err(e.status, e.message);
-    // Safe generic — never the key or the raw provider response.
-    return err(502, "Image generation failed.");
+    // Specific, safe error code + message (sensitive detail stays server-side).
+    if (e instanceof GenerationError) return err(e.status, e.message, e.code, e.retryable);
+    return err(502, "Image generation failed.", "PROVIDER_ERROR", true);
   }
 }

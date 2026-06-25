@@ -8,7 +8,7 @@ import { VISUAL_STYLE_OPTIONS } from "@/lib/domain";
 import { useBrands, useLocations, useProducts } from "@/lib/hooks";
 import { buildGenerationRequest, type ComposeInput } from "@/lib/services/instruction-composer";
 import { startGeneration } from "@/lib/services/generation-service";
-import { requestOpenAIGeneration } from "@/lib/services/generation-client";
+import { requestOpenAIGeneration, GenerationRequestError } from "@/lib/services/generation-client";
 import { validateGenerationRequest } from "@/lib/services/validation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { studioPrefill, type StudioPrefill } from "@/lib/store/studio-draft";
@@ -83,6 +83,7 @@ export function HomeGenerator() {
   });
   const [job, setJob] = React.useState<GenerationJob | null>(null);
   const [generating, setGenerating] = React.useState(false);
+  const [genError, setGenError] = React.useState<{ message: string; retryable: boolean } | null>(null);
 
   const [logoPicker, setLogoPicker] = React.useState(false);
   const [productPicker, setProductPicker] = React.useState(false);
@@ -173,6 +174,7 @@ export function HomeGenerator() {
 
     setGenerating(true);
     setJob(null);
+    setGenError(null);
     try {
       if (providerMode === "openai") {
         // Server-side OpenAI generation: submit ONLY trusted IDs + settings. The
@@ -204,7 +206,11 @@ export function HomeGenerator() {
         toast.error(finished.error ?? "Generation failed");
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Generation failed");
+      if (e instanceof GenerationRequestError) {
+        setGenError({ message: e.message, retryable: e.retryable });
+      } else {
+        setGenError({ message: e instanceof Error ? e.message : "Generation failed.", retryable: true });
+      }
     } finally {
       setGenerating(false);
     }
@@ -216,10 +222,8 @@ export function HomeGenerator() {
       <div className="mx-auto max-w-xl space-y-4">
         <PageHeader title="Generating your mockup" description="Hang tight — building a realistic placement." />
         <div className="bg-card overflow-hidden rounded-xl border shadow-sm">
+          {/* The large area shows the generation animation — not the source location. */}
           <AspectFrame ratio={state.settings.aspectRatio} className="bg-muted">
-            {mainLocationImageUrl && (
-              <AssetImage src={mainLocationImageUrl} alt="" className="absolute inset-0 size-full object-cover" />
-            )}
             <GeneratingCanvas job={job} />
           </AspectFrame>
         </div>
@@ -343,21 +347,19 @@ export function HomeGenerator() {
           <div className="space-y-2" data-testid="picker-location">
             <SectionLabel>Location</SectionLabel>
             {selectedLocation ? (
-              <div className="space-y-2">
-                <div className="overflow-hidden rounded-lg border">
-                  <AspectFrame ratio="1:1" className="bg-muted">
-                    <AssetImage
-                      src={mainLocationImageUrl ?? undefined}
-                      alt={selectedLocation.name}
-                      fallbackIcon={MapPin}
-                      fallbackLabel="No image uploaded"
-                      className="absolute inset-0 size-full object-cover"
-                    />
-                  </AspectFrame>
-                </div>
-                <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <span className="bg-card flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border">
+                  <AssetImage
+                    src={mainLocationImageUrl ?? undefined}
+                    alt=""
+                    fallbackIcon={MapPin}
+                    fallbackLabel="No image"
+                    className="size-full object-cover"
+                  />
+                </span>
+                <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{selectedLocation.name}</p>
-                  <div className="flex shrink-0 gap-2">
+                  <div className="mt-1.5 flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => setLocationPicker(true)}>
                       Change
                     </Button>
@@ -409,52 +411,57 @@ export function HomeGenerator() {
             </p>
           )}
           {generateButton}
+          {genError && (
+            <div className="border-destructive/30 bg-destructive/5 space-y-2 rounded-lg border p-3" role="alert">
+              <p className="text-destructive flex items-start gap-1.5 text-sm">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+                <span>{genError.message}</span>
+              </p>
+              {genError.retryable && (
+                <Button variant="outline" size="sm" onClick={handleGenerate} disabled={!canGenerate}>
+                  Try again
+                </Button>
+              )}
+            </div>
+          )}
         </CardContent>
         </Card>
 
-        {/* Visual summary of the selected assets (desktop). */}
+        {/* Result area (desktop) — reserved for the GENERATED mockup, never the
+            source location. Before generation: an empty canvas + a compact
+            summary of the selected assets. */}
         <aside className="top-20 hidden space-y-3 lg:sticky lg:order-2 lg:block">
-          <p className="text-muted-foreground text-sm font-medium">Your mockup</p>
+          <p className="text-muted-foreground text-sm font-medium">Result</p>
           <div className="bg-card overflow-hidden rounded-xl border shadow-sm">
-            <AspectFrame ratio={state.settings.aspectRatio} className="bg-muted">
-              {selectedLocation ? (
-                <AssetImage
-                  src={mainLocationImageUrl ?? undefined}
-                  alt={selectedLocation.name}
-                  fallbackIcon={MapPin}
-                  fallbackLabel="No image uploaded"
-                  className="absolute inset-0 size-full object-cover"
-                />
-              ) : (
-                <div className="text-muted-foreground absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center">
-                  <ImageIcon className="size-7 opacity-50" />
-                  <p className="text-xs">Pick a location to preview your mockup</p>
-                </div>
-              )}
-              {logo && (
-                <span className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-white/90 px-2 py-1 shadow-sm">
-                  <span className="size-5 shrink-0 overflow-hidden rounded-sm">
-                    <AssetImage src={logo.asset.url} alt="" className="size-full object-contain" />
-                  </span>
-                  {brand && <span className="max-w-28 truncate text-xs font-medium text-zinc-900">{brand.name}</span>}
-                </span>
-              )}
-              {selectedProducts.length > 0 && (
-                <div className="absolute inset-x-3 bottom-3 flex flex-wrap items-end gap-2">
-                  {selectedProducts.slice(0, 4).map((p) => (
-                    <span key={p.id} className="size-12 overflow-hidden rounded-md border-2 border-white/80 shadow-md">
-                      <AssetImage src={p.mainImage?.url} alt="" fallbackIcon={Package} className="size-full object-cover" />
-                    </span>
-                  ))}
-                  {selectedProducts.length > 4 && (
-                    <span className="rounded-md bg-black/55 px-2 py-1 text-xs font-medium text-white">
-                      +{selectedProducts.length - 4}
-                    </span>
-                  )}
-                </div>
-              )}
+            <AspectFrame ratio={state.settings.aspectRatio} className="bg-grid bg-muted">
+              <div className="text-muted-foreground absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center">
+                <ImageIcon className="size-7 opacity-50" />
+                <p className="text-xs">Your generated mockup will appear here.</p>
+              </div>
             </AspectFrame>
           </div>
+          {(logo || selectedProducts.length > 0 || selectedLocation) && (
+            <div className="space-y-2 rounded-xl border p-3">
+              <p className="text-muted-foreground text-xs font-medium">Selected for this mockup</p>
+              <div className="flex flex-wrap gap-2">
+                {logo && (
+                  <span className="bg-card flex size-12 items-center justify-center overflow-hidden rounded-md border" title={brand?.name}>
+                    <AssetImage src={logo.asset.url} alt="" className="size-full object-contain p-1" />
+                  </span>
+                )}
+                {selectedProducts.slice(0, 5).map((p) => (
+                  <span key={p.id} className="bg-card size-12 overflow-hidden rounded-md border" title={p.name}>
+                    <AssetImage src={p.mainImage?.url} alt="" fallbackIcon={Package} className="size-full object-cover" />
+                  </span>
+                ))}
+                {selectedLocation && (
+                  <span className="bg-card size-12 overflow-hidden rounded-md border" title={selectedLocation.name}>
+                    <AssetImage src={mainLocationImageUrl ?? undefined} alt="" fallbackIcon={MapPin} className="size-full object-cover" />
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </aside>
       </div>
 

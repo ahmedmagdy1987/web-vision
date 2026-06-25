@@ -8,6 +8,7 @@ import {
 } from "./provider-config";
 import {
   generateImageWithOpenAI,
+  OpenAIProviderError,
   type OpenAIImagesClient,
   type OpenAIReferenceImage,
   type OpenAIServerConfig,
@@ -28,6 +29,15 @@ export type GenerationErrorCode =
   | "BAD_REQUEST"
   | "RATE_LIMITED"
   | "CONFLICT"
+  | "ASSET_IMAGE_UNAVAILABLE"
+  | "OPENAI_MODEL_ACCESS_DENIED"
+  | "OPENAI_BILLING_REQUIRED"
+  | "OPENAI_INVALID_REQUEST"
+  | "OPENAI_CONTENT_POLICY"
+  | "OPENAI_TIMEOUT"
+  | "IMAGE_POST_PROCESSING_FAILED"
+  | "RESULT_STORAGE_FAILED"
+  | "RESULT_PERSISTENCE_FAILED"
   | "PROVIDER_ERROR";
 
 const STATUS_BY_CODE: Record<GenerationErrorCode, number> = {
@@ -37,17 +47,52 @@ const STATUS_BY_CODE: Record<GenerationErrorCode, number> = {
   BAD_REQUEST: 400,
   RATE_LIMITED: 429,
   CONFLICT: 409,
+  ASSET_IMAGE_UNAVAILABLE: 422,
+  OPENAI_MODEL_ACCESS_DENIED: 502,
+  OPENAI_BILLING_REQUIRED: 402,
+  OPENAI_INVALID_REQUEST: 502,
+  OPENAI_CONTENT_POLICY: 422,
+  OPENAI_TIMEOUT: 504,
+  IMAGE_POST_PROCESSING_FAILED: 500,
+  RESULT_STORAGE_FAILED: 500,
+  RESULT_PERSISTENCE_FAILED: 500,
   PROVIDER_ERROR: 502,
+};
+
+/**
+ * Whether a brand-new paid attempt could plausibly succeed (drives the UI's
+ * non-destructive "Try again"). 4xx provider failures — model access, billing,
+ * invalid request, content policy — and validation are NOT retryable.
+ */
+const RETRYABLE_BY_CODE: Record<GenerationErrorCode, boolean> = {
+  UNAUTHENTICATED: false,
+  FORBIDDEN: false,
+  NOT_FOUND: false,
+  BAD_REQUEST: false,
+  RATE_LIMITED: true,
+  CONFLICT: false,
+  ASSET_IMAGE_UNAVAILABLE: false,
+  OPENAI_MODEL_ACCESS_DENIED: false,
+  OPENAI_BILLING_REQUIRED: false,
+  OPENAI_INVALID_REQUEST: false,
+  OPENAI_CONTENT_POLICY: false,
+  OPENAI_TIMEOUT: true,
+  IMAGE_POST_PROCESSING_FAILED: true,
+  RESULT_STORAGE_FAILED: true,
+  RESULT_PERSISTENCE_FAILED: true,
+  PROVIDER_ERROR: true,
 };
 
 export class GenerationError extends Error {
   readonly code: GenerationErrorCode;
   readonly status: number;
+  readonly retryable: boolean;
   constructor(code: GenerationErrorCode, message: string) {
     super(message);
     this.name = "GenerationError";
     this.code = code;
     this.status = STATUS_BY_CODE[code];
+    this.retryable = RETRYABLE_BY_CODE[code];
   }
 }
 
@@ -223,19 +268,40 @@ export async function runOpenAIGeneration(
 
   try {
     const prompt = await deps.gateway.composePrompt(ctx, input, refs);
-    const native = await generateImageWithOpenAI(
-      deps.openai,
-      deps.config,
-      { prompt, aspectRatio: input.settings.aspectRatio, references: refs.map(toOpenAIRef) },
-      { maxAttempts: deps.maxAttempts, timeoutMs: deps.timeoutMs },
-    );
 
-    const final = await postProcess(Buffer.from(native.base64, "base64"), input.settings.aspectRatio, deps.config.outputFormat);
+    // --- Provider call (classify provider failures into specific safe codes) ---
+    let native: Awaited<ReturnType<typeof generateImageWithOpenAI>>;
+    try {
+      native = await generateImageWithOpenAI(
+        deps.openai,
+        deps.config,
+        { prompt, aspectRatio: input.settings.aspectRatio, references: refs.map(toOpenAIRef) },
+        { maxAttempts: deps.maxAttempts, timeoutMs: deps.timeoutMs },
+      );
+    } catch (e) {
+      throw toProviderGenerationError(e);
+    }
 
+    // --- Post-process (sharp crop to the final size) ---
+    let final: PostProcessedImage;
+    try {
+      final = await postProcess(Buffer.from(native.base64, "base64"), input.settings.aspectRatio, deps.config.outputFormat);
+    } catch {
+      throw new GenerationError("IMAGE_POST_PROCESSING_FAILED", "The generated image could not be processed.");
+    }
+
+    // --- Upload to private Storage ---
     const resultId = randomUUID();
-    const storagePath = await deps.gateway.uploadResult(ctx, jobId, resultId, final);
+    let storagePath: string;
+    try {
+      storagePath = await deps.gateway.uploadResult(ctx, jobId, resultId, final);
+    } catch {
+      throw new GenerationError("RESULT_STORAGE_FAILED", "The generated image could not be saved to storage.");
+    }
 
-    await deps.gateway.persistResult(ctx, {
+    // --- Persist the Gallery result ---
+    try {
+      await deps.gateway.persistResult(ctx, {
       jobId,
       resultId,
       input,
@@ -254,17 +320,30 @@ export async function runOpenAIGeneration(
       requestId: native.requestId,
       usage: native.usage,
       estimatedCostUsd: estimateImageCostUsd(native.quality, 1),
-    });
+      });
+    } catch {
+      throw new GenerationError("RESULT_PERSISTENCE_FAILED", "The generated image was received but could not be saved.");
+    }
 
     await deps.gateway.completeJob(ctx, jobId);
     return { jobId, resultId, reused: false };
   } catch (err) {
-    const code = err instanceof GenerationError ? err.code : "PROVIDER_ERROR";
-    // Safe message only — never the key or the raw provider response.
-    const message = err instanceof GenerationError ? err.message : "Image generation failed.";
-    await deps.gateway.failJob(ctx, jobId, code, message);
-    throw err instanceof GenerationError ? err : new GenerationError("PROVIDER_ERROR", message);
+    // Every stage above throws a classified GenerationError; record its safe
+    // code + message on the job (never the key or raw provider response).
+    const ge = err instanceof GenerationError ? err : new GenerationError("PROVIDER_ERROR", "Image generation failed.");
+    await deps.gateway.failJob(ctx, jobId, ge.code, ge.message);
+    throw ge;
   }
+}
+
+/** Map a provider-call failure to a specific safe GenerationError. */
+function toProviderGenerationError(e: unknown): GenerationError {
+  if (e instanceof GenerationError) return e;
+  if (e instanceof OpenAIProviderError) return new GenerationError(e.providerCode, e.safeMessage);
+  if ((e as { name?: string })?.name === "AbortError") {
+    return new GenerationError("OPENAI_TIMEOUT", "The image provider timed out.");
+  }
+  return new GenerationError("PROVIDER_ERROR", "The image provider could not complete the request.");
 }
 
 // Lazy import so the orchestrator stays free of the server-only sharp dependency

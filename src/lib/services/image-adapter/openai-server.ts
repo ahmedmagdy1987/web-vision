@@ -120,6 +120,63 @@ export function isRetryableProviderError(err: unknown): boolean {
   return true;
 }
 
+export type ProviderErrorCode =
+  | "OPENAI_MODEL_ACCESS_DENIED"
+  | "OPENAI_BILLING_REQUIRED"
+  | "OPENAI_INVALID_REQUEST"
+  | "OPENAI_CONTENT_POLICY"
+  | "OPENAI_TIMEOUT"
+  | "PROVIDER_ERROR";
+
+/** A provider failure carrying a specific safe code + message — NEVER the key or
+ *  the raw provider response body. */
+export class OpenAIProviderError extends Error {
+  readonly providerCode: ProviderErrorCode;
+  readonly safeMessage: string;
+  constructor(providerCode: ProviderErrorCode, safeMessage: string) {
+    super(safeMessage);
+    this.name = "OpenAIProviderError";
+    this.providerCode = providerCode;
+    this.safeMessage = safeMessage;
+  }
+}
+
+/**
+ * Classify an OpenAI SDK error into a specific safe code using its
+ * status/code/type — without leaking the raw response. Defaults to a generic
+ * provider error. Used to produce actionable, non-sensitive UI messages.
+ */
+export function classifyProviderError(err: unknown): OpenAIProviderError {
+  const e = err as { status?: number; code?: string; type?: string; name?: string; message?: string };
+  const status = e?.status;
+  const code = (e?.code ?? "").toLowerCase();
+  const type = (e?.type ?? "").toLowerCase();
+  const msg = (e?.message ?? "").toLowerCase();
+
+  if (e?.name === "AbortError" || status === 408 || status === 504 || /timed out|timeout/.test(msg)) {
+    return new OpenAIProviderError("OPENAI_TIMEOUT", "The image provider timed out.");
+  }
+  if (status === 402 || code.includes("insufficient_quota") || /quota|billing|exceeded your current/.test(msg)) {
+    return new OpenAIProviderError("OPENAI_BILLING_REQUIRED", "OpenAI image access or billing is not enabled for this API project.");
+  }
+  if (type.includes("content_policy") || code.includes("content_policy") || code.includes("moderation") || /content policy|safety system|moderation/.test(msg)) {
+    return new OpenAIProviderError("OPENAI_CONTENT_POLICY", "The request was blocked by the image provider's content policy.");
+  }
+  if (status === 404 || code.includes("model_not_found") || /model.*(not found|does not exist|do not have access)/.test(msg)) {
+    return new OpenAIProviderError("OPENAI_MODEL_ACCESS_DENIED", "OpenAI image model access is not enabled for this API project.");
+  }
+  if (status === 401 || status === 403) {
+    return new OpenAIProviderError("OPENAI_MODEL_ACCESS_DENIED", "OpenAI image access or billing is not enabled for this API project.");
+  }
+  if (status === 429) {
+    return new OpenAIProviderError("PROVIDER_ERROR", "The image provider is busy. Please try again shortly.");
+  }
+  if (typeof status === "number" && status >= 400 && status < 500) {
+    return new OpenAIProviderError("OPENAI_INVALID_REQUEST", "The image provider rejected the request parameters.");
+  }
+  return new OpenAIProviderError("PROVIDER_ERROR", "The image provider could not complete the request.");
+}
+
 const DEFAULT_TIMEOUT_MS = 120_000;
 
 /**
@@ -186,7 +243,7 @@ export async function generateImageWithOpenAI(
       opts.signal?.removeEventListener("abort", onAbort);
     }
   }
-  throw new Error(`OpenAI image generation failed: ${(lastError as Error)?.message ?? "unknown error"}`);
+  throw classifyProviderError(lastError);
 }
 
 export interface PostProcessedImage {

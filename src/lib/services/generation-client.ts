@@ -26,6 +26,19 @@ export interface OpenAIGenerationOutcome {
   reused: boolean;
 }
 
+/** A failed generation carrying the server's safe code + whether a new paid
+ *  attempt could plausibly succeed (drives the "Try again" action). */
+export class GenerationRequestError extends Error {
+  readonly code: string;
+  readonly retryable: boolean;
+  constructor(message: string, code: string, retryable: boolean) {
+    super(message);
+    this.name = "GenerationRequestError";
+    this.code = code;
+    this.retryable = retryable;
+  }
+}
+
 export async function requestOpenAIGeneration(
   input: OpenAIGenerationRequest,
   signal?: AbortSignal,
@@ -37,8 +50,12 @@ export async function requestOpenAIGeneration(
     signal,
   });
   if (!res.ok) {
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(data.error || `Generation failed (${res.status}).`);
+    const data = (await res.json().catch(() => ({}))) as { error?: string; code?: string; retryable?: boolean };
+    throw new GenerationRequestError(
+      data.error || `Generation failed (${res.status}).`,
+      data.code || "PROVIDER_ERROR",
+      data.retryable ?? true,
+    );
   }
   return (await res.json()) as OpenAIGenerationOutcome;
 }
