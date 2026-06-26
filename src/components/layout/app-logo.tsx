@@ -1,19 +1,34 @@
-import { Aperture } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-/** Web Vision product wordmark; the mark adopts the active brand accent. */
-export function AppLogo({ collapsed = false, className }: { collapsed?: boolean; className?: string }) {
+/**
+ * Official Malahi application logo (public/malahi-logo.png). Rendered exactly as
+ * supplied — never redrawn, recolored, distorted or stretched. Transparency and
+ * aspect ratio are preserved via `object-contain`; delivery is optimized by
+ * next/image.
+ *
+ * The navy PNG is rendered as-is (no recolor / no CSS filter). For dark-mode
+ * contrast the surrounding surface is lightened by the layout (an integrated
+ * light brand-header band / panel), NOT a floating white pill around the logo.
+ *
+ * NOTE: this is the permanent application identity — distinct from the client
+ * logos employees select inside the Logo Library for mockup generation.
+ */
+export function MalahiLogo({ className, imgClassName }: { className?: string; imgClassName?: string }) {
   return (
-    <div className={cn("flex items-center gap-2.5", className)}>
-      <div className="bg-brand text-brand-foreground flex size-9 shrink-0 items-center justify-center rounded-lg shadow-sm">
-        <Aperture className="size-5" />
-      </div>
-      {!collapsed && (
-        <div className="min-w-0 leading-tight">
-          <p className="truncate text-sm font-semibold">Web Vision</p>
-          <p className="text-muted-foreground truncate text-[11px]">Malahi Studio</p>
-        </div>
-      )}
-    </div>
+    <span className={cn("inline-flex items-center justify-center", className)}>
+      <Image
+        src="/malahi-logo.png"
+        alt="Malahi"
+        width={250}
+        height={132}
+        priority
+        className={cn("w-auto object-contain", imgClassName ?? "h-7")}
+      />
+    </span>
   );
+}
+
+export function AppLogo({ collapsed = false, className }: { collapsed?: boolean; className?: string }) {
+  return <MalahiLogo className={className} imgClassName={collapsed ? "h-6 max-w-[44px]" : "h-7"} />;
 }

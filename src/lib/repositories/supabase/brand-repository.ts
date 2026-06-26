@@ -6,6 +6,7 @@ import type { BrandAssetRow, BrandRow } from "@/lib/supabase/database.types";
 import { SupabaseCollection } from "./collection";
 import { db, getActiveOrgId, getActiveUserId, requireActiveOrgId } from "./context";
 import { brandFromRow, slugify, type SignUrl } from "./mappers";
+import { reportRepositoryError } from "../error-reporter";
 import type { BrandRepositoryApi, CreateBrandInput, CreateLogoInput } from "../types";
 
 export class SupabaseBrandRepository extends SupabaseCollection<Brand> implements BrandRepositoryApi {
@@ -282,25 +283,38 @@ export class SupabaseBrandRepository extends SupabaseCollection<Brand> implement
     });
   }
 
-  removeLogo(brandId: ID, logoId: ID): void {
+  /** Hard delete: remove the brand_assets row + its Storage object. Awaitable so
+   *  bulk flows can report per-item success/failure. Rolls the cache back and
+   *  rethrows on a DB failure; a Storage-only failure is a recoverable warning
+   *  (the record is already gone). Mirrors deleteProduct/deleteLocation. */
+  async removeLogo(brandId: ID, logoId: ID): Promise<void> {
     const prev = this.getById(brandId);
     if (!prev) return;
     const removed = prev.logos.find((l) => l.id === logoId);
-    this.optimistic({
-      apply: () =>
-        this.cacheUpdate(brandId, (b) => {
-          const logos = b.logos.filter((l) => l.id !== logoId);
-          const defaultLogoId = b.defaultLogoId === logoId ? logos[0]?.id : b.defaultLogoId;
-          return { ...b, logos, defaultLogoId, updatedAt: nowIso() };
-        }),
-      persist: async () => {
-        const supabase = db();
-        const { error } = await supabase.from("brand_assets").delete().eq("id", logoId);
-        if (error) throw error;
-        if (removed) await removeObjects(supabase, [brandAssetPath(requireActiveOrgId(), brandId, logoId, removed.asset.mimeType)]);
-      },
-      rollback: () => this.cacheReplace(brandId, prev),
-      context: "remove logo",
+    this.cacheUpdate(brandId, (b) => {
+      const logos = b.logos.filter((l) => l.id !== logoId);
+      const defaultLogoId = b.defaultLogoId === logoId ? logos[0]?.id : b.defaultLogoId;
+      return { ...b, logos, defaultLogoId, updatedAt: nowIso() };
     });
+    try {
+      const supabase = db();
+      const { error } = await supabase.from("brand_assets").delete().eq("id", logoId);
+      if (error) throw error;
+      if (removed) {
+        const { failed } = await removeObjects(supabase, [
+          brandAssetPath(requireActiveOrgId(), brandId, logoId, removed.asset.mimeType),
+        ]);
+        if (failed.length) {
+          reportRepositoryError({
+            context: "clean up the storage object for the deleted logo",
+            error: new Error("Storage cleanup incomplete"),
+            reverted: false,
+          });
+        }
+      }
+    } catch (e) {
+      this.cacheReplace(brandId, prev);
+      throw e;
+    }
   }
 }

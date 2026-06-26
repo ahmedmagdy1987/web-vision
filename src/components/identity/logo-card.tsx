@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,18 +20,32 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AssetImage } from "@/components/common/asset-image";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { ImageLightbox } from "@/components/common/image-lightbox";
+import { LogoDeleteDialog } from "@/components/logos/logo-delete-dialog";
 import { LogoEditDialog } from "./logo-edit-dialog";
 
 interface LogoCardProps {
   logo: LogoAsset;
   brandId: string;
   isDefault: boolean;
+  /** Optional logo name shown on the card (used by the flat Logo Library). */
+  name?: string;
+  /** When provided, the card shows a selection checkbox (multi-select for bulk). */
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-export function LogoCard({ logo, brandId, isDefault }: LogoCardProps) {
-  const [confirmRemove, setConfirmRemove] = React.useState(false);
+export function LogoCard({
+  logo,
+  brandId,
+  isDefault,
+  name,
+  selected = false,
+  onToggleSelect,
+}: LogoCardProps) {
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
+  const [lightboxOpen, setLightboxOpen] = React.useState(false);
   const replaceRef = React.useRef<HTMLInputElement>(null);
 
   const archived = logo.status === "archived";
@@ -44,12 +59,6 @@ export function LogoCard({ logo, brandId, isDefault }: LogoCardProps) {
     const next = archived ? "active" : "archived";
     brandRepository.setLogoStatus(brandId, logo.id, next);
     toast.success(`Logo ${next === "active" ? "activated" : "archived"}.`);
-  };
-
-  const handleRemove = () => {
-    brandRepository.removeLogo(brandId, logo.id);
-    toast.success("Logo removed.");
-    setConfirmRemove(false);
   };
 
   const handleReplace = async (fileList: FileList | null) => {
@@ -68,17 +77,39 @@ export function LogoCard({ logo, brandId, isDefault }: LogoCardProps) {
       className={cn(
         "group bg-card relative flex flex-col overflow-hidden rounded-xl border shadow-sm transition-colors",
         isDefault ? "border-brand-border ring-1 ring-brand-border" : "hover:border-brand-border/60",
+        selected && "border-brand ring-2 ring-brand-border",
         archived && "opacity-60",
       )}
     >
       <div className="bg-muted/40 relative">
-        <AssetImage
-          src={logo.asset.url}
-          alt={`${LOGO_KIND_LABELS[logo.kind]} logo`}
-          className="aspect-square w-full bg-[linear-gradient(45deg,var(--muted)_25%,transparent_25%),linear-gradient(-45deg,var(--muted)_25%,transparent_25%),linear-gradient(45deg,transparent_75%,var(--muted)_75%),linear-gradient(-45deg,transparent_75%,var(--muted)_75%)] bg-[length:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0] object-contain p-4"
-        />
+        {onToggleSelect && (
+          <div className="absolute top-2 left-2 z-10 rounded-md bg-background/80 p-1 backdrop-blur">
+            <Checkbox
+              checked={selected}
+              onCheckedChange={() => onToggleSelect(logo.id)}
+              aria-label={`Select ${name ?? LOGO_KIND_LABELS[logo.kind]} logo`}
+            />
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setLightboxOpen(true)}
+          aria-label={`View ${LOGO_KIND_LABELS[logo.kind]} logo`}
+          className="block w-full cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+        >
+          <AssetImage
+            src={logo.asset.url}
+            alt={`${LOGO_KIND_LABELS[logo.kind]} logo`}
+            className="aspect-square w-full bg-[linear-gradient(45deg,var(--muted)_25%,transparent_25%),linear-gradient(-45deg,var(--muted)_25%,transparent_25%),linear-gradient(45deg,transparent_75%,var(--muted)_75%),linear-gradient(-45deg,transparent_75%,var(--muted)_75%)] bg-[length:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0] object-contain p-4"
+          />
+        </button>
         {isDefault && (
-          <span className="bg-brand text-brand-foreground absolute top-2 left-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold">
+          <span
+            className={cn(
+              "bg-brand text-brand-foreground absolute inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
+              onToggleSelect ? "bottom-2 left-2" : "top-2 left-2",
+            )}
+          >
             <Star className="size-3 fill-current" />
             Default
           </span>
@@ -116,15 +147,20 @@ export function LogoCard({ logo, brandId, isDefault }: LogoCardProps) {
               {archived ? "Activate" : "Archive"}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={() => setConfirmRemove(true)}>
+            <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
               <Trash2 />
-              Remove
+              Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
       <div className="flex flex-1 flex-col gap-2 p-3">
+        {name && (
+          <p className="truncate text-sm font-medium" title={name}>
+            {name}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant="outline">{LOGO_KIND_LABELS[logo.kind]}</Badge>
           {archived ? (
@@ -184,14 +220,20 @@ export function LogoCard({ logo, brandId, isDefault }: LogoCardProps) {
 
       <LogoEditDialog open={editOpen} onOpenChange={setEditOpen} logo={logo} brandId={brandId} />
 
-      <ConfirmDialog
-        open={confirmRemove}
-        onOpenChange={setConfirmRemove}
-        title="Remove this logo?"
-        description={`The ${LOGO_KIND_LABELS[logo.kind].toLowerCase()} logo will be permanently removed from this brand.`}
-        confirmLabel="Remove"
-        destructive
-        onConfirm={handleRemove}
+      <LogoDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        logo={logo}
+        brandId={brandId}
+        name={name ?? LOGO_KIND_LABELS[logo.kind]}
+      />
+
+      <ImageLightbox
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        images={[{ url: logo.asset.url, alt: `${LOGO_KIND_LABELS[logo.kind]} logo` }]}
+        index={0}
+        onIndexChange={() => {}}
       />
     </li>
   );

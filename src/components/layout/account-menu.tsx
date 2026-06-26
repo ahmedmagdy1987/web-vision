@@ -45,7 +45,7 @@ export function AccountMenu() {
           <div className="truncate">{user.email ?? "Signed in"}</div>
           {/* Static internal team context — Malahi tenancy is not a product concept. */}
           <div className="text-muted-foreground text-xs font-normal">
-            {role ? ROLE_LABELS[role] : "Member"} · Malahi Studio
+            {role ? ROLE_LABELS[role] : "Member"} · Malahi
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

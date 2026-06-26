@@ -1,10 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Archive, Images, MoreVertical, Pencil, RotateCcw, Sparkles } from "lucide-react";
+import { Archive, Images, MoreVertical, Package, Pencil, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import type { Brand, Product } from "@/lib/domain";
 import { PRODUCT_USAGE_LABELS } from "@/lib/domain";
+import { useResults } from "@/lib/hooks";
+import { productRepository } from "@/lib/repositories";
+import { isProductReferenced } from "@/lib/services/asset-references";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/sonner";
+import { DeleteAssetDialog } from "@/components/common/delete-asset-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AspectFrame } from "@/components/common/aspect-frame";
 import { AssetImage } from "@/components/common/asset-image";
+import { ImageLightbox } from "@/components/common/image-lightbox";
 import { EntityStatusBadge } from "@/components/common/status-badge";
 
 interface ProductCardProps {
@@ -48,6 +54,58 @@ export function ProductCard({
   const accent = brand?.accentColor ?? "var(--brand)";
   const extraTags = product.tags.length - MAX_TAGS;
 
+  const images = React.useMemo(
+    () =>
+      [product.mainImage, ...product.referenceImages]
+        .filter((img): img is NonNullable<typeof img> => Boolean(img?.url))
+        .map((img) => ({ url: img.url, alt: product.name })),
+    [product.mainImage, product.referenceImages, product.name],
+  );
+  const [lightboxOpen, setLightboxOpen] = React.useState(false);
+  const [lightboxIndex, setLightboxIndex] = React.useState(0);
+  // Opening the image preview must never select the card (stop the card click).
+  const openLightbox = React.useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (images.length > 0) {
+        setLightboxIndex(0);
+        setLightboxOpen(true);
+      }
+    },
+    [images.length],
+  );
+  const results = useResults();
+  const referenced = isProductReferenced(results, product.id);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+
+  const overlays = (
+    <>
+      <ImageLightbox
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        images={images}
+        index={lightboxIndex}
+        onIndexChange={setLightboxIndex}
+      />
+      <DeleteAssetDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        assetType="Product"
+        name={product.name}
+        thumbnailUrl={product.mainImage?.url}
+        referenced={referenced}
+        onArchive={() => {
+          productRepository.setStatus(product.id, "archived");
+          toast.success(`${product.name} removed from active library`);
+        }}
+        onDelete={async () => {
+          await productRepository.deleteProduct(product.id);
+          toast.success(`${product.name} deleted`);
+        }}
+      />
+    </>
+  );
+
   const ActionsMenu = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -63,7 +121,7 @@ export function ProductCard({
       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
         <DropdownMenuItem onSelect={() => onOpenInStudio(product)}>
           <Sparkles />
-          Open in Studio
+          Use in mockup
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onEdit(product)}>
           <Pencil />
@@ -83,6 +141,10 @@ export function ProductCard({
             </>
           )}
         </DropdownMenuItem>
+        <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
+          <Trash2 />
+          Delete
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -96,6 +158,7 @@ export function ProductCard({
 
   if (compact) {
     return (
+      <>
       <Card
         className={cn(
           "flex-row items-center gap-3 rounded-lg p-2.5 transition-colors",
@@ -103,21 +166,25 @@ export function ProductCard({
           selected && "border-brand ring-1 ring-brand-border bg-brand-subtle/40",
           archived && "opacity-70",
         )}
-        onClick={() => onToggleSelect(product.id)}
       >
         <Checkbox
           checked={selected}
           onCheckedChange={() => onToggleSelect(product.id)}
-          onClick={(e) => e.stopPropagation()}
           aria-label={`Select ${product.name}`}
         />
-        <div className="bg-muted size-14 shrink-0 overflow-hidden rounded-md">
+        <button
+          type="button"
+          onClick={openLightbox}
+          aria-label={`View ${product.name} image`}
+          className="bg-muted size-14 shrink-0 cursor-zoom-in overflow-hidden rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
           <AssetImage
             src={product.mainImage?.url}
             alt={product.name}
+            fallbackIcon={Package}
             className="size-full object-cover"
           />
-        </div>
+        </button>
         <div className="min-w-0 flex-1 space-y-0.5">
           <p className="truncate text-sm font-medium">{product.name}</p>
           {BrandLine}
@@ -132,10 +199,13 @@ export function ProductCard({
         </div>
         {ActionsMenu}
       </Card>
+      {overlays}
+      </>
     );
   }
 
   return (
+    <>
     <Card
       className={cn(
         "group relative gap-0 overflow-hidden p-0 transition-all",
@@ -143,29 +213,30 @@ export function ProductCard({
         selected && "border-brand ring-2 ring-brand-border",
         archived && "opacity-75",
       )}
-      onClick={() => onToggleSelect(product.id)}
     >
       <div className="relative">
-        <AspectFrame ratio="4:3" className="bg-muted">
-          <AssetImage
-            src={product.mainImage?.url}
-            alt={product.name}
-            className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-          />
-        </AspectFrame>
-
-        {/* Select checkbox */}
-        <div
-          className={cn(
-            "absolute top-2.5 left-2.5 rounded-md bg-background/80 p-1 backdrop-blur transition-opacity",
-            "opacity-0 group-hover:opacity-100 focus-within:opacity-100",
-            selected && "opacity-100",
-          )}
+        <button
+          type="button"
+          onClick={openLightbox}
+          aria-label={`View ${product.name} image`}
+          className="block w-full cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
         >
+          <AspectFrame ratio="1:1" className="bg-muted">
+            <AssetImage
+              src={product.mainImage?.url}
+              alt={product.name}
+              fallbackIcon={Package}
+              fallbackLabel="No image uploaded"
+              className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            />
+          </AspectFrame>
+        </button>
+
+        {/* Select checkbox — always visible (selection is checkbox-only). */}
+        <div className="absolute top-2.5 left-2.5 rounded-md bg-background/80 p-1 backdrop-blur">
           <Checkbox
             checked={selected}
             onCheckedChange={() => onToggleSelect(product.id)}
-            onClick={(e) => e.stopPropagation()}
             aria-label={`Select ${product.name}`}
           />
         </div>
@@ -221,5 +292,7 @@ export function ProductCard({
         )}
       </div>
     </Card>
+    {overlays}
+    </>
   );
 }

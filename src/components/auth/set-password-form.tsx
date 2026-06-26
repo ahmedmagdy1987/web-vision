@@ -74,7 +74,7 @@ export function SetPasswordForm() {
   }
   if (done) {
     return (
-      <AuthCard title="Password created" description="Redirecting you to Web Vision…">
+      <AuthCard title="Password created" description="Redirecting you to Malahi…">
         <Button asChild className="w-full">
           <Link href={next}>Continue</Link>
         </Button>
@@ -85,7 +85,7 @@ export function SetPasswordForm() {
   return (
     <AuthCard
       title="Create your password"
-      description="Set a password to finish joining your Web Vision workspace."
+      description="Set a password to finish joining Malahi."
     >
       <form onSubmit={onSubmit} className="space-y-4" aria-label="Create password">
         <div className="space-y-1.5">

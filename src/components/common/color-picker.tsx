@@ -7,18 +7,19 @@ import { isValidHexColor } from "@/lib/theme/brand-accent";
 import { cn } from "@/lib/utils";
 
 const PRESETS = [
-  "#6366f1",
-  "#8b5cf6",
-  "#ec4899",
-  "#ef4444",
-  "#f97316",
-  "#f59e0b",
-  "#22c55e",
-  "#10b981",
+  "#0d9488",
   "#14b8a6",
   "#06b6d4",
-  "#3b82f6",
   "#0ea5e9",
+  "#3b82f6",
+  "#22c55e",
+  "#10b981",
+  "#f59e0b",
+  "#f97316",
+  "#ef4444",
+  "#ec4899",
+  "#6366f1",
+  "#8b5cf6",
   "#64748b",
   "#18181b",
 ];

@@ -8,7 +8,6 @@ import {
   ChevronDown,
   Copy,
   Download,
-  FolderKanban,
   MapPin,
   Package2,
   RefreshCw,
@@ -18,20 +17,20 @@ import {
 } from "lucide-react";
 import type { GenerationResult, GenerationSettings } from "@/lib/domain";
 import { ASPECT_RATIO_VALUES, CONTROL_LABELS, creativityLabel } from "@/lib/domain";
-import { useProjects } from "@/lib/hooks";
 import { resultRepository } from "@/lib/repositories";
 import { studioPrefill } from "@/lib/store/studio-draft";
 import { readableForeground } from "@/lib/theme/brand-accent";
 import { AspectFrame } from "@/components/common/aspect-frame";
 import { AssetImage } from "@/components/common/asset-image";
+import { ImageLightbox } from "@/components/common/image-lightbox";
 import { ReviewBadge } from "@/components/common/status-badge";
+import { downloadResultFile } from "@/lib/services/download-result";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
-import { InstructionsViewer } from "./instructions-viewer";
 
 interface ResultDetailProps {
   result: GenerationResult;
@@ -87,11 +86,24 @@ function ContinueAction({
 export function ResultDetail({ result }: ResultDetailProps) {
   const router = useRouter();
   const { snapshot } = result;
-  const projects = useProjects();
-  const project = result.projectId ? projects.find((p) => p.id === result.projectId) : undefined;
   const accentFg = readableForeground(snapshot.brandAccent);
   const settingRows = React.useMemo(() => buildSettingRows(snapshot.settings), [snapshot.settings]);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [downloading, setDownloading] = React.useState(false);
+  const [lightboxOpen, setLightboxOpen] = React.useState(false);
+
+  const handleDownload = React.useCallback(async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      await downloadResultFile(result.id);
+      toast.success("Download started");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Download failed");
+    } finally {
+      setDownloading(false);
+    }
+  }, [downloading, result.id]);
 
   const ratioValue = ASPECT_RATIO_VALUES[snapshot.settings.aspectRatio];
   const isPortrait = ratioValue < 1;
@@ -110,7 +122,7 @@ export function ResultDetail({ result }: ResultDetailProps) {
         source: "gallery",
       });
       toast.success(message);
-      router.push("/studio");
+      router.push("/");
     },
     [router, snapshot],
   );
@@ -130,14 +142,15 @@ export function ResultDetail({ result }: ResultDetailProps) {
     toast.success(next?.favorite ? "Added to favorites" : "Removed from favorites");
   };
 
-  const downloadName = `${snapshot.brandName.replace(/\s+/g, "-").toLowerCase()}-mockup-${result.id}.svg`;
-
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]">
       {/* Preview — kept dominant; portrait results are width-capped so they don't tower. */}
       <div className="space-y-3">
-        <div
-          className="bg-card mx-auto w-full overflow-hidden rounded-xl border shadow-sm"
+        <button
+          type="button"
+          onClick={() => setLightboxOpen(true)}
+          aria-label={`View ${snapshot.brandName} mockup full size`}
+          className="bg-card mx-auto block w-full cursor-zoom-in overflow-hidden rounded-xl border shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           style={isPortrait ? { maxWidth: `calc(72vh * ${ratioValue})` } : undefined}
         >
           <AspectFrame ratio={snapshot.settings.aspectRatio} className="bg-muted">
@@ -147,16 +160,15 @@ export function ResultDetail({ result }: ResultDetailProps) {
               className="absolute inset-0 h-full w-full object-contain"
             />
           </AspectFrame>
-        </div>
+        </button>
         <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 text-xs">
           <span>
-            {result.image.width}×{result.image.height} · {snapshot.settings.aspectRatio} · seed {result.seed}
+            {result.image.width}×{result.image.height} · {snapshot.settings.aspectRatio}
+            {typeof result.seed === "number" ? ` · seed ${result.seed}` : ""}
           </span>
-          <Button asChild variant="outline" size="sm">
-            <a href={result.image.url} download={downloadName}>
-              <Download className="size-4" />
-              Download
-            </a>
+          <Button variant="outline" size="sm" onClick={handleDownload} disabled={downloading}>
+            <Download className="size-4" />
+            {downloading ? "Downloading…" : "Download"}
           </Button>
         </div>
       </div>
@@ -227,14 +239,14 @@ export function ResultDetail({ result }: ResultDetailProps) {
             <ContinueAction
               icon={Copy}
               label="Duplicate setup"
-              help="Reopen the exact setup in Studio without generating."
-              onClick={() => goToStudio({}, "Setup copied to Studio")}
+              help="Reopen the exact setup without generating."
+              onClick={() => goToStudio({}, "Setup copied")}
             />
             <ContinueAction
               icon={RefreshCw}
               label="Regenerate"
               help="Create another result from the same request."
-              onClick={() => goToStudio({}, "Re-running this setup in Studio")}
+              onClick={() => goToStudio({}, "Re-running this setup")}
             />
             <ContinueAction
               icon={Sparkles}
@@ -258,15 +270,6 @@ export function ResultDetail({ result }: ResultDetailProps) {
         {/* Context */}
         <section className="space-y-3">
           <SectionTitle>Context</SectionTitle>
-          {project && (
-            <div className="flex flex-col gap-1.5">
-              <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                <FolderKanban className="size-3.5" />
-                Project
-              </span>
-              <span className="text-sm">{project.name}</span>
-            </div>
-          )}
           <div className="flex flex-col gap-1.5">
             <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
               <Package2 className="size-3.5" />
@@ -353,9 +356,18 @@ export function ResultDetail({ result }: ResultDetailProps) {
             </div>
           )}
 
-          <InstructionsViewer instructions={snapshot.instructions} />
         </section>
       </div>
+
+      <ImageLightbox
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        images={[{ url: result.image.url, alt: `${snapshot.brandName} mockup` }]}
+        index={0}
+        onIndexChange={() => {}}
+        onDownload={handleDownload}
+        downloadBusy={downloading}
+      />
     </div>
   );
 }

@@ -13,10 +13,13 @@ import {
   useIsMobile,
   useProducts,
   useProjects,
+  useResults,
 } from "@/lib/hooks";
 import { productRepository } from "@/lib/repositories";
+import { isProductReferenced } from "@/lib/services/asset-references";
 import { studioPrefill } from "@/lib/store/studio-draft";
 import { toast } from "@/components/ui/sonner";
+import { BulkDeleteDialog, type BulkDeleteItem } from "@/components/common/bulk-delete-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,7 +34,7 @@ import {
   ProductFilters,
   type ProductFilterState,
 } from "@/components/products/product-filters";
-import { SelectionBar } from "@/components/products/selection-bar";
+import { SelectionBar } from "@/components/common/selection-bar";
 
 function matchesSearch(product: Product, query: string): boolean {
   const q = query.trim().toLowerCase();
@@ -50,6 +53,7 @@ export default function ProductsPage() {
   const router = useRouter();
 
   const products = useProducts();
+  const results = useResults();
   const brands = useBrands();
   const projects = useProjects();
   const { brand: activeBrand } = useActiveBrand();
@@ -60,6 +64,7 @@ export default function ProductsPage() {
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Product | null>(null);
   const [archiveTarget, setArchiveTarget] = React.useState<Product | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
 
   const brandsById = React.useMemo(() => new Map(brands.map((b) => [b.id, b])), [brands]);
 
@@ -92,6 +97,20 @@ export default function ProductsPage() {
   const visibleSelectedIds = React.useMemo(
     () => selectedIds.filter((id) => filteredIds.has(id)),
     [selectedIds, filteredIds],
+  );
+
+  const bulkItems: BulkDeleteItem[] = React.useMemo(
+    () =>
+      visibleSelectedIds
+        .map((id) => products.find((p) => p.id === id))
+        .filter((p): p is Product => Boolean(p))
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          thumbnailUrl: p.mainImage?.url,
+          referenced: isProductReferenced(results, p.id),
+        })),
+    [visibleSelectedIds, products, results],
   );
 
   const toggleSelect = (id: string) =>
@@ -132,13 +151,13 @@ export default function ProductsPage() {
     const brandIds = new Set(selected.map((p) => p.brandId));
     const commonBrandId =
       brandIds.size === 1 ? selected[0].brandId : activeBrand?.id ?? brands[0]?.id;
-    // Studio composes within a single brand. Carry only the resolved brand's
+    // A mockup composes within a single brand. Carry only the resolved brand's
     // products and tell the user if a cross-brand selection was narrowed.
     const carried = selected.filter((p) => p.brandId === commonBrandId);
     if (carried.length < selected.length) {
       const brandName = brands.find((b) => b.id === commonBrandId)?.name ?? "one brand";
       toast.info(
-        `Studio works with one brand at a time — kept ${carried.length} ${brandName} product${carried.length === 1 ? "" : "s"}.`,
+        `A mockup uses one brand at a time — kept ${carried.length} ${brandName} product${carried.length === 1 ? "" : "s"}.`,
       );
     }
     studioPrefill.set({
@@ -146,7 +165,7 @@ export default function ProductsPage() {
       brandId: commonBrandId,
       source: "products",
     });
-    router.push("/studio");
+    router.push("/");
   };
 
   const isFiltering =
@@ -275,6 +294,18 @@ export default function ProductsPage() {
         count={visibleSelectedIds.length}
         onClear={clearSelection}
         onOpenInStudio={() => openInStudio(visibleSelectedIds)}
+        onDelete={() => visibleSelectedIds.length > 0 && setBulkDeleteOpen(true)}
+      />
+
+      <BulkDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        assetTypePlural="products"
+        items={bulkItems}
+        archive={(id) => productRepository.setStatus(id, "archived")}
+        remove={(id) => productRepository.deleteProduct(id)}
+        refresh={() => productRepository.refresh()}
+        onResult={(failed) => setSelectedIds(failed)}
       />
 
       <ProductFormDialog

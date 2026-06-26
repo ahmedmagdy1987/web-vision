@@ -2,16 +2,13 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { FolderKanban, MapPin, Package2, Star } from "lucide-react";
+import { CalendarDays, MapPin, Package2, Star } from "lucide-react";
 import type { GenerationResult } from "@/lib/domain";
-import { CONTROL_LABELS } from "@/lib/domain";
-import { useProjects } from "@/lib/hooks";
 import { resultRepository } from "@/lib/repositories";
 import { readableForeground } from "@/lib/theme/brand-accent";
 import { AspectFrame } from "@/components/common/aspect-frame";
 import { AssetImage } from "@/components/common/asset-image";
 import { ReviewBadge } from "@/components/common/status-badge";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
@@ -28,8 +25,9 @@ function summarizeNames(names: string[]): string {
 
 export function ResultCard({ result }: ResultCardProps) {
   const { snapshot } = result;
-  const projects = useProjects();
-  const project = result.projectId ? projects.find((p) => p.id === result.projectId) : undefined;
+  const created = new Date(result.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  // Mock results are SVG placeholders; real provider results (e.g. OpenAI WebP) are not.
+  const isMock = result.image.mimeType === "image/svg+xml";
 
   const handleToggleFavorite = React.useCallback(() => {
     const next = resultRepository.toggleFavorite(result.id);
@@ -44,7 +42,9 @@ export function ResultCard({ result }: ResultCardProps) {
       )}
     >
       <div className="relative">
-        <AspectFrame ratio={snapshot.settings.aspectRatio} className="bg-muted">
+        {/* Gallery cards stay square even when the result is portrait/landscape;
+            the full uncropped image is shown on the detail page. */}
+        <AspectFrame ratio="1:1" className="bg-muted">
           <AssetImage
             src={result.image.url}
             alt={`${snapshot.brandName} mockup`}
@@ -71,6 +71,14 @@ export function ResultCard({ result }: ResultCardProps) {
         <div className="pointer-events-none absolute top-2 left-2 z-20">
           <ReviewBadge review={result.review} />
         </div>
+
+        {isMock && (
+          <div className="pointer-events-none absolute bottom-2 left-2 z-20">
+            <span className="bg-background/85 text-muted-foreground rounded-md px-1.5 py-0.5 text-[10px] font-medium backdrop-blur-sm">
+              Mock result
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Stretched link makes the whole card a single accessible navigation target. */}
@@ -103,21 +111,10 @@ export function ResultCard({ result }: ResultCardProps) {
               <span className="truncate">{snapshot.locationName}</span>
             </span>
           )}
-          {project && (
-            <span className="flex items-center gap-1.5">
-              <FolderKanban className="size-3.5 shrink-0" />
-              <span className="truncate">{project.name}</span>
-            </span>
-          )}
-        </div>
-
-        <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
-          <Badge variant="muted" className="font-normal">
-            {CONTROL_LABELS.visualizationType[snapshot.settings.visualizationType]}
-          </Badge>
-          <Badge variant="outline" className="font-normal">
-            {snapshot.settings.aspectRatio}
-          </Badge>
+          <span className="mt-auto flex items-center gap-1.5 pt-1">
+            <CalendarDays className="size-3.5 shrink-0" />
+            <span className="truncate">{created}</span>
+          </span>
         </div>
       </div>
     </div>

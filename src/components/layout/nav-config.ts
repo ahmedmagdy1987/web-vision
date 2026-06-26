@@ -1,11 +1,9 @@
 import {
-  FolderKanban,
   Home,
   Image as ImageIcon,
   MapPin,
   Package,
-  Palette,
-  Wand2,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -16,14 +14,16 @@ export interface NavItem {
   description: string;
 }
 
+// Simplified Malahi navigation: Home holds the full mockup-generation workflow.
+// "Logos" is the employee-facing label for the brand/logo library (route kept
+// as /identity to avoid breaking existing deep links). Projects, Studio and any
+// workspace/org concepts are intentionally absent from the normal UI.
 export const NAV_ITEMS: NavItem[] = [
-  { label: "Home", href: "/", icon: Home, description: "Overview & quick start" },
-  { label: "Projects", href: "/projects", icon: FolderKanban, description: "Client engagements & work" },
-  { label: "Identity", href: "/identity", icon: Palette, description: "Brands & logo assets" },
+  { label: "Home", href: "/", icon: Home, description: "Generate a mockup" },
+  { label: "Logos", href: "/logos", icon: Sparkles, description: "Logo library" },
   { label: "Products", href: "/products", icon: Package, description: "Games & equipment" },
   { label: "Locations", href: "/locations", icon: MapPin, description: "Client sites & venues" },
-  { label: "Studio", href: "/studio", icon: Wand2, description: "Compose & generate" },
-  { label: "Gallery", href: "/gallery", icon: ImageIcon, description: "Generation history" },
+  { label: "Gallery", href: "/gallery", icon: ImageIcon, description: "Generated mockups" },
 ];
 
 /** Whether a nav item is active for the current pathname. */

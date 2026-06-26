@@ -82,7 +82,7 @@ export default function GalleryPage() {
         <SearchInput
           value={searchQuery}
           onValueChange={(value) => appStore.setSearchQuery(value)}
-          placeholder="Search by brand, product, location or notes…"
+          placeholder="Search by logo, product, location or notes…"
           containerClassName="max-w-md"
           aria-label="Search results"
         />
@@ -115,10 +115,10 @@ export default function GalleryPage() {
         <EmptyState
           icon={ImageIcon}
           title="No mockups yet"
-          description="Generated results appear here. Head to the Studio to compose and generate your first visual."
+          description="Generated mockups appear here. Create your first mockup on Home."
           action={
             <Button asChild>
-              <Link href="/studio">Open Studio</Link>
+              <Link href="/">Create a mockup</Link>
             </Button>
           }
         />

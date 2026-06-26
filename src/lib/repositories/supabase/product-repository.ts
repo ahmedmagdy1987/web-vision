@@ -6,6 +6,7 @@ import type { ProductAssetRow, ProductCategoryRow, ProductRow } from "@/lib/supa
 import { SupabaseCollection } from "./collection";
 import { db, getActiveOrgId, getActiveUserId, requireActiveOrgId } from "./context";
 import { productFromRow, slugify, type SignUrl } from "./mappers";
+import { reportRepositoryError } from "../error-reporter";
 import type { ProductInput, ProductRepositoryApi } from "../types";
 
 interface AssetUpload {
@@ -306,5 +307,39 @@ export class SupabaseProductRepository extends SupabaseCollection<Product> imple
       rollback: () => this.cacheReplace(id, prev),
       context: "archive product",
     });
+  }
+
+  /** Hard delete: remove product_assets rows + Storage objects + the product row.
+   *  Awaitable so bulk flows can report per-item success/failure. Rolls the cache
+   *  back and rethrows on a DB failure; a Storage-only failure is a recoverable
+   *  warning (the record is already gone). */
+  async deleteProduct(id: ID): Promise<void> {
+    const prev = this.getById(id);
+    if (!prev) return;
+    this.cacheRemove(id);
+    try {
+      const supabase = db();
+      const { data: assetRows } = await supabase
+        .from("product_assets")
+        .select("storage_path")
+        .eq("product_id", id);
+      const paths = ((assetRows ?? []) as { storage_path: string }[]).map((a) => a.storage_path);
+      await supabase.from("product_assets").delete().eq("product_id", id);
+      const { error } = await supabase.from("products").delete().eq("id", id);
+      if (error) throw error;
+      if (paths.length) {
+        const { failed } = await removeObjects(supabase, paths);
+        if (failed.length) {
+          reportRepositoryError({
+            context: `clean up ${failed.length} storage object(s) for the deleted product`,
+            error: new Error("Storage cleanup incomplete"),
+            reverted: false,
+          });
+        }
+      }
+    } catch (e) {
+      this.cacheAppend(prev);
+      throw e;
+    }
   }
 }

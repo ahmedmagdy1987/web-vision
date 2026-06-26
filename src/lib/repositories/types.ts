@@ -10,6 +10,7 @@
  */
 import type {
   Brand,
+  EntityStatus,
   GenerationJob,
   GenerationResult,
   ID,
@@ -97,7 +98,11 @@ export interface BrandRepositoryApi extends ReadableStore<Brand> {
   replaceLogoAsset(brandId: ID, logoId: ID, asset: ImageAsset): void;
   setLogoStatus(brandId: ID, logoId: ID, status: LogoStatus): void;
   setDefaultLogo(brandId: ID, logoId: ID): void;
-  removeLogo(brandId: ID, logoId: ID): void;
+  /** Permanently delete a logo + its Storage object. Only for logos NOT
+   *  referenced by history; resolves on success, rejects on DB failure. */
+  removeLogo(brandId: ID, logoId: ID): Promise<void>;
+  /** Reload the authoritative collection from the backend. */
+  refresh(): Promise<void>;
 }
 
 export interface ProductRepositoryApi extends ReadableStore<Product> {
@@ -106,6 +111,11 @@ export interface ProductRepositoryApi extends ReadableStore<Product> {
   addProduct(input: ProductInput): Product;
   updateProduct(id: ID, input: Partial<ProductInput>): Product | undefined;
   setStatus(id: ID, status: Product["status"]): Product | undefined;
+  /** Permanently delete a product + its Storage objects. Only for products NOT
+   *  referenced by history; resolves on success, rejects on DB failure. */
+  deleteProduct(id: ID): Promise<void>;
+  /** Reload the authoritative collection from the backend. */
+  refresh(): Promise<void>;
 }
 
 export interface LocationRepositoryApi extends ReadableStore<Location> {
@@ -114,6 +124,13 @@ export interface LocationRepositoryApi extends ReadableStore<Location> {
   addLocation(input: LocationInput): Location;
   updateLocation(id: ID, input: Partial<LocationInput>): Location | undefined;
   setMainImage(id: ID, imageId: ID): Location | undefined;
+  /** Archive / restore (hides from new-generation pickers; preserves history). */
+  setStatus(id: ID, status: EntityStatus): Location | undefined;
+  /** Permanently delete a location + its Storage objects. Only for locations NOT
+   *  referenced by history; resolves on success, rejects on DB failure. */
+  deleteLocation(id: ID): Promise<void>;
+  /** Reload the authoritative collection from the backend. */
+  refresh(): Promise<void>;
 }
 
 export interface JobRepositoryApi extends ReadableStore<GenerationJob> {
@@ -145,4 +162,6 @@ export interface ResultRepositoryApi extends ReadableStore<GenerationResult> {
   setReview(id: ID, review: ResultReview): GenerationResult | undefined;
   setFavorite(id: ID, favorite: boolean): GenerationResult | undefined;
   toggleFavorite(id: ID): GenerationResult | undefined;
+  /** Reload the authoritative results collection from the backend (Supabase). */
+  refresh(): Promise<void>;
 }

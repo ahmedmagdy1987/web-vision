@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, RotateCcw, Star } from "lucide-react";
+import { RotateCcw, Star } from "lucide-react";
 import type { Brand, ID, Location, Product, Project, ResultReview } from "@/lib/domain";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -35,7 +35,7 @@ interface GalleryFiltersProps {
   onChange: (next: GalleryFilterState) => void;
 }
 
-export function GalleryFilters({ projects, brands, products, locations, filters, onChange }: GalleryFiltersProps) {
+export function GalleryFilters({ brands, products, locations, filters, onChange }: GalleryFiltersProps) {
   const patch = React.useCallback(
     (partial: Partial<GalleryFilterState>) => onChange({ ...filters, ...partial }),
     [filters, onChange],
@@ -64,30 +64,14 @@ export function GalleryFilters({ projects, brands, products, locations, filters,
 
   return (
     <div className="bg-card/60 flex flex-col gap-4 rounded-xl border p-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <FilterField id="filter-project" label="Project">
-          <Select value={filters.projectId} onValueChange={(v) => patch({ projectId: v as ID | "all" })}>
-            <SelectTrigger id="filter-project" size="sm" aria-label="Filter by project">
-              <SelectValue placeholder="All projects" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All projects</SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FilterField>
-
-        <FilterField id="filter-brand" label="Brand">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <FilterField id="filter-brand" label="Logo">
           <Select value={filters.brandId} onValueChange={handleBrandChange}>
-            <SelectTrigger id="filter-brand" size="sm" aria-label="Filter by brand">
-              <SelectValue placeholder="All brands" />
+            <SelectTrigger id="filter-brand" size="sm" aria-label="Filter by logo">
+              <SelectValue placeholder="All logos" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All brands</SelectItem>
+              <SelectItem value="all">All logos</SelectItem>
               {brands.map((brand) => (
                 <SelectItem key={brand.id} value={brand.id}>
                   {brand.name}
@@ -172,15 +156,8 @@ export function GalleryFilters({ projects, brands, products, locations, filters,
             Sort
           </Label>
           <Select value={filters.sort} onValueChange={(v) => patch({ sort: v as GallerySort })}>
-            <SelectTrigger id="filter-sort" size="sm" className="w-[140px]" aria-label="Sort results">
-              <span className="flex items-center gap-2">
-                {filters.sort === "newest" ? (
-                  <ArrowDownWideNarrow className="size-4" />
-                ) : (
-                  <ArrowUpWideNarrow className="size-4" />
-                )}
-                <SelectValue />
-              </span>
+            <SelectTrigger id="filter-sort" size="sm" className="w-[150px]" aria-label="Sort results">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="newest">Newest first</SelectItem>

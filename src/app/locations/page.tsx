@@ -2,9 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, MapPinned, Plus, SearchX } from "lucide-react";
+import { MapPinned, Plus, SearchX } from "lucide-react";
 import type { Location } from "@/lib/domain";
-import { useActiveProject, useLocations, useMounted } from "@/lib/hooks";
+import { useLocations, useMounted, useResults } from "@/lib/hooks";
+import { locationRepository } from "@/lib/repositories";
+import { isLocationReferenced } from "@/lib/services/asset-references";
 import { studioPrefill } from "@/lib/store/studio-draft";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,9 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { BulkDeleteDialog, type BulkDeleteItem } from "@/components/common/bulk-delete-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { SearchInput } from "@/components/common/search-input";
+import { SelectionBar } from "@/components/common/selection-bar";
 import { LocationCard } from "@/components/locations/location-card";
 import { LocationFormDialog } from "@/components/locations/location-form-dialog";
 
@@ -37,30 +41,48 @@ export default function LocationsPage() {
   const mounted = useMounted();
   const router = useRouter();
   const locations = useLocations();
-  const { project, projects } = useActiveProject();
+  const results = useResults();
 
   const [search, setSearch] = React.useState("");
   const [usageFilter, setUsageFilter] = React.useState<UsageFilter>("all");
-  const [scope, setScope] = React.useState<"active" | "all">("active");
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Location | null>(null);
-
-  const selectedProject = scope === "active" ? project : null;
-
-  const projectNameFor = React.useCallback(
-    (location: Location) => projects.find((p) => p.locationIds.includes(location.id))?.name,
-    [projects],
-  );
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
 
   const filtered = React.useMemo(() => {
     return locations
       .filter((l) => {
         if (usageFilter !== "all" && l.usage !== usageFilter) return false;
-        if (selectedProject && !selectedProject.locationIds.includes(l.id)) return false;
         return matchesSearch(l, search);
       })
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  }, [locations, usageFilter, selectedProject, search]);
+  }, [locations, usageFilter, search]);
+
+  const filteredIds = React.useMemo(() => new Set(filtered.map((l) => l.id)), [filtered]);
+  // Keep the action bar accurate: only count selections that are currently visible.
+  const visibleSelectedIds = React.useMemo(
+    () => selectedIds.filter((id) => filteredIds.has(id)),
+    [selectedIds, filteredIds],
+  );
+
+  const bulkItems: BulkDeleteItem[] = React.useMemo(
+    () =>
+      visibleSelectedIds
+        .map((id) => locations.find((l) => l.id === id))
+        .filter((l): l is Location => Boolean(l))
+        .map((l) => ({
+          id: l.id,
+          name: l.name,
+          thumbnailUrl: (l.images.find((i) => i.id === l.mainImageId) ?? l.images[0])?.url,
+          referenced: isLocationReferenced(results, l.id),
+        })),
+    [visibleSelectedIds, locations, results],
+  );
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const clearSelection = () => setSelectedIds([]);
 
   const openCreate = () => {
     setEditing(null);
@@ -72,11 +94,8 @@ export default function LocationsPage() {
   };
   const useInStudio = (location: Location) => {
     studioPrefill.set({ locationId: location.id, source: "locations" });
-    router.push("/studio");
+    router.push("/");
   };
-
-  const isFiltering = usageFilter !== "all" || search.trim().length > 0;
-  const projectHasNoLocations = Boolean(selectedProject) && filtered.length === 0 && !isFiltering;
 
   return (
     <div className="space-y-6 pb-24">
@@ -99,15 +118,6 @@ export default function LocationsPage() {
           containerClassName="sm:max-w-xs"
         />
         <div className="flex items-center gap-2">
-          <Select value={scope} onValueChange={(v) => setScope(v as "active" | "all")}>
-            <SelectTrigger size="sm" className="w-auto min-w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">{project ? project.name : "Current project"}</SelectItem>
-              <SelectItem value="all">All locations</SelectItem>
-            </SelectContent>
-          </Select>
           <Select value={usageFilter} onValueChange={(v) => setUsageFilter(v as UsageFilter)}>
             <SelectTrigger size="sm" className="w-auto min-w-28">
               <SelectValue />
@@ -128,18 +138,6 @@ export default function LocationsPage() {
           icon={MapPinned}
           title="No locations yet"
           description="Upload a client site to start visualizing products on location."
-          action={
-            <Button onClick={openCreate}>
-              <Plus />
-              Add location
-            </Button>
-          }
-        />
-      ) : projectHasNoLocations ? (
-        <EmptyState
-          icon={MapPin}
-          title="No locations available for this project"
-          description="Upload a client site in Locations to continue, or switch to “All locations”."
           action={
             <Button onClick={openCreate}>
               <Plus />
@@ -168,13 +166,15 @@ export default function LocationsPage() {
         <>
           <p className="text-muted-foreground text-xs">
             {filtered.length} location{filtered.length === 1 ? "" : "s"}
+            {visibleSelectedIds.length > 0 && ` · ${visibleSelectedIds.length} selected`}
           </p>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((location) => (
               <LocationCard
                 key={location.id}
                 location={location}
-                projectName={projectNameFor(location)}
+                selected={selectedIds.includes(location.id)}
+                onToggleSelect={toggleSelect}
                 onEdit={openEdit}
                 onUseInStudio={useInStudio}
               />
@@ -187,7 +187,24 @@ export default function LocationsPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         location={editing}
-        activeProjectId={project?.id}
+      />
+
+      <SelectionBar
+        count={visibleSelectedIds.length}
+        noun="location"
+        onClear={clearSelection}
+        onDelete={() => visibleSelectedIds.length > 0 && setBulkDeleteOpen(true)}
+      />
+
+      <BulkDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        assetTypePlural="locations"
+        items={bulkItems}
+        archive={(id) => locationRepository.setStatus(id, "archived")}
+        remove={(id) => locationRepository.deleteLocation(id)}
+        refresh={() => locationRepository.refresh()}
+        onResult={(failed) => setSelectedIds(failed)}
       />
     </div>
   );

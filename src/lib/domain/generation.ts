@@ -101,6 +101,8 @@ export type InstructionSectionKey =
   | "product"
   | "location"
   | "controls"
+  | "composition"
+  | "preservation"
   | "notes";
 
 export interface InstructionSection {
@@ -216,7 +218,9 @@ export interface GenerationResult {
   image: ImageAsset;
   /** Index within the job for output counts > 1. */
   index: number;
-  seed: number;
+  /** Provider seed, when the provider returned one. Absent for providers (e.g.
+   *  OpenAI gpt-image-2) that do not expose a seed — never coerced to 0. */
+  seed?: number;
   review: ResultReview;
   favorite: boolean;
   snapshot: ResultSnapshot;

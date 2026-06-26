@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { FolderKanban, ImageIcon, MapPin, Package, Palette, Search } from "lucide-react";
-import { appStore, useBrands, useLocations, useProducts, useProjects, useResults } from "@/lib/hooks";
+import { ImageIcon, MapPin, Package, Search, Sparkles } from "lucide-react";
+import { appStore, useBrands, useLocations, useProducts, useResults } from "@/lib/hooks";
 import { studioPrefill } from "@/lib/store/studio-draft";
 import { AssetImage } from "@/components/common/asset-image";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -27,7 +27,6 @@ export function GlobalSearch() {
   const products = useProducts();
   const locations = useLocations();
   const results = useResults();
-  const projects = useProjects();
 
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -52,23 +51,6 @@ export function GlobalSearch() {
     close();
   };
 
-  const projectHits: SearchHit[] = term
-    ? projects
-        .filter((p) => has(p.name) || has(p.clientName) || has(p.description))
-        .slice(0, 5)
-        .map((p) => ({
-          id: p.id,
-          title: p.name,
-          subtitle: p.clientName ? `Project · ${p.clientName}` : "Project",
-          icon: <FolderKanban className="size-4" />,
-          onSelect: () =>
-            navigate(() => {
-              appStore.setSelectedProject(p.id);
-              router.push(`/projects/${p.id}`);
-            }),
-        }))
-    : [];
-
   const brandHits: SearchHit[] = term
     ? brands
         .filter((b) => has(b.name) || has(b.description))
@@ -76,12 +58,12 @@ export function GlobalSearch() {
         .map((b) => ({
           id: b.id,
           title: b.name,
-          subtitle: b.status === "archived" ? "Brand · archived" : "Brand",
+          subtitle: b.status === "archived" ? "Logo · archived" : "Logo",
           icon: <span className="size-3 rounded-full" style={{ backgroundColor: b.accentColor }} />,
           onSelect: () =>
             navigate(() => {
               appStore.setSelectedBrand(b.id);
-              router.push("/identity");
+              router.push("/logos");
             }),
         }))
     : [];
@@ -115,7 +97,7 @@ export function GlobalSearch() {
           onSelect: () =>
             navigate(() => {
               studioPrefill.set({ locationId: l.id, brandId: l.brandId, source: "search" });
-              router.push("/studio");
+              router.push("/");
             }),
         }))
     : [];
@@ -138,11 +120,10 @@ export function GlobalSearch() {
     : [];
 
   const groups: { label: string; icon: React.ReactNode; hits: SearchHit[] }[] = [
-    { label: "Projects", icon: <FolderKanban className="size-3.5" />, hits: projectHits },
-    { label: "Brands", icon: <Palette className="size-3.5" />, hits: brandHits },
+    { label: "Logos", icon: <Sparkles className="size-3.5" />, hits: brandHits },
     { label: "Products", icon: <Package className="size-3.5" />, hits: productHits },
     { label: "Locations", icon: <MapPin className="size-3.5" />, hits: locationHits },
-    { label: "Mockups", icon: <ImageIcon className="size-3.5" />, hits: resultHits },
+    { label: "Gallery", icon: <ImageIcon className="size-3.5" />, hits: resultHits },
   ].filter((g) => g.hits.length > 0);
 
   const totalHits = groups.reduce((sum, g) => sum + g.hits.length, 0);
@@ -154,7 +135,7 @@ export function GlobalSearch() {
         type="button"
         onClick={() => setOpen(true)}
         className="text-muted-foreground hover:bg-accent/50 ml-1 hidden h-9 max-w-md flex-1 items-center gap-2 rounded-md border bg-background px-3 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:flex"
-        aria-label="Search brands, products, locations and mockups"
+        aria-label="Search logos, products, locations and gallery"
       >
         <Search className="size-4" />
         <span>Search…</span>
@@ -177,7 +158,7 @@ export function GlobalSearch() {
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search brands, products, locations, mockups…"
+              placeholder="Search logos, products, locations, gallery…"
               className="placeholder:text-muted-foreground h-12 w-full bg-transparent text-sm outline-none"
               aria-label="Search query"
             />
@@ -186,7 +167,7 @@ export function GlobalSearch() {
           <div className="max-h-[60dvh] overflow-y-auto p-2">
             {term.length === 0 ? (
               <p className="text-muted-foreground px-2 py-6 text-center text-sm">
-                Type to search across brands, products, locations and mockups.
+                Search across logos, products, locations and gallery.
               </p>
             ) : totalHits === 0 ? (
               <p className="text-muted-foreground px-2 py-6 text-center text-sm">No matches for “{query}”.</p>

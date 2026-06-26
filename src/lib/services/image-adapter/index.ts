@@ -6,16 +6,18 @@ export type {
   ImageGenerationParams,
   ImageGenerationResponse,
   GeneratedImage,
+  ImageReference,
 } from "./types";
 export { MockImageAdapter } from "./mock-adapter";
+export { getImageProvider, type ImageProvider } from "./provider-config";
 
 /**
- * Single place that decides which provider is active. Swap the returned
- * implementation here when a real image API is introduced — callers depend only
- * on the {@link ImageGenerationAdapter} interface.
+ * The in-browser generation flow always uses the mock adapter. The real OpenAI
+ * generation runs ENTIRELY server-side via `/api/generate-image`, selected by the
+ * server-authoritative `IMAGE_GENERATION_PROVIDER` — the browser never selects or
+ * runs the OpenAI provider, and never holds the API key. Provider selection lives
+ * in `getImageProvider()` (server) + the route, never here.
  */
-const adapter: ImageGenerationAdapter = new MockImageAdapter();
-
 export function getImageAdapter(): ImageGenerationAdapter {
-  return adapter;
+  return new MockImageAdapter();
 }

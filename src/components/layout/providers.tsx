@@ -4,10 +4,8 @@ import * as React from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster, toast } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth/auth-context";
-import { useActiveBrand } from "@/lib/hooks";
 import { setRepositoryErrorHandler } from "@/lib/repositories/error-reporter";
 import { setStorageErrorHandler } from "@/lib/repositories/storage";
-import { applyBrandAccent } from "@/lib/theme/brand-accent";
 import { useResolvedTheme } from "@/lib/theme/use-theme";
 
 function ThemeApplier() {
@@ -16,14 +14,6 @@ function ThemeApplier() {
     document.documentElement.classList.toggle("dark", theme === "dark");
     document.documentElement.style.colorScheme = theme;
   }, [theme]);
-  return null;
-}
-
-function BrandAccentApplier() {
-  const { brand } = useActiveBrand();
-  React.useEffect(() => {
-    applyBrandAccent(brand?.accentColor);
-  }, [brand?.accentColor]);
   return null;
 }
 
@@ -61,7 +51,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <TooltipProvider>
       <AuthProvider>
         <ThemeApplier />
-        <BrandAccentApplier />
         <StorageErrorReporter />
         <RepositoryErrorReporter />
         {children}

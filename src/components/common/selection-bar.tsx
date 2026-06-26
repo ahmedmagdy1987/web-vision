@@ -1,0 +1,68 @@
+"use client";
+
+import * as React from "react";
+import { Sparkles, Trash2, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+
+interface SelectionBarProps {
+  count: number;
+  onClear: () => void;
+  /** Optional "Use in mockup" action — Products only (a mockup composes products). */
+  onOpenInStudio?: () => void;
+  onDelete?: () => void;
+  /** Singular lowercase entity noun shown in the bar. Defaults to "product". */
+  noun?: string;
+}
+
+/**
+ * Floating multi-selection action bar, shared by the Products, Locations and
+ * Logos libraries. Selection is checkbox-driven; this bar surfaces the count and
+ * bulk actions (Clear, optional Use-in-mockup, optional Delete). The region label
+ * is "<Noun> selection" so each library has a stable, accessible target.
+ */
+export function SelectionBar({ count, onClear, onOpenInStudio, onDelete, noun = "product" }: SelectionBarProps) {
+  const visible = count > 0;
+  const label = `${noun.charAt(0).toUpperCase()}${noun.slice(1)} selection`;
+  return (
+    <div
+      className={cn(
+        "pointer-events-none fixed inset-x-0 bottom-20 z-40 flex justify-center px-4 pb-[env(safe-area-inset-bottom)] transition-all duration-200 md:bottom-0 md:pb-4",
+        visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
+      )}
+      aria-hidden={!visible}
+    >
+      <div
+        className="bg-card text-card-foreground pointer-events-auto flex w-full max-w-xl items-center gap-3 rounded-xl border px-4 py-3 shadow-lg"
+        role="region"
+        aria-label={label}
+      >
+        <span className="bg-brand text-brand-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
+          {count}
+        </span>
+        <span className="text-sm font-medium">
+          {count} {noun}
+          {count === 1 ? "" : "s"} selected
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={onClear}>
+            <X />
+            Clear
+          </Button>
+          {onDelete && (
+            <Button variant="outline" size="sm" className="text-destructive" onClick={onDelete}>
+              <Trash2 />
+              Delete
+            </Button>
+          )}
+          {onOpenInStudio && (
+            <Button size="sm" onClick={onOpenInStudio}>
+              <Sparkles />
+              Use in mockup
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

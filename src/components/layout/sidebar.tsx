@@ -22,8 +22,15 @@ export function Sidebar() {
         sidebarCollapsed ? "w-16" : "w-60",
       )}
     >
-      <div className={cn("flex h-14 items-center border-b px-3", sidebarCollapsed ? "justify-center" : "justify-between")}>
-        <Link href="/" aria-label="Web Vision home">
+      <div
+        className={cn(
+          // Integrated light brand-header band so the navy logo stays readable in
+          // dark mode without a floating white pill around it.
+          "flex h-14 items-center border-b px-3 dark:border-black/10 dark:bg-white",
+          sidebarCollapsed ? "justify-center" : "justify-between",
+        )}
+      >
+        <Link href="/" aria-label="Malahi home">
           <AppLogo collapsed={sidebarCollapsed} />
         </Link>
       </div>

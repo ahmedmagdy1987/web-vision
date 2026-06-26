@@ -1,7 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { IdentityView } from "@/components/identity/identity-view";
-
+// The Identity page is now the employee-facing Logo Library at /logos. Keep this
+// route as a redirect for backward compatibility with old links.
 export default function IdentityPage() {
-  return <IdentityView />;
+  redirect("/logos");
 }
