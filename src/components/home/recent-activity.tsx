@@ -9,7 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 
 function relativeTime(iso: string): string {
-  const diffMs = new Date("2026-06-22T10:00:30.000Z").getTime() - new Date(iso).getTime();
+  // Client-only render (useJobs returns an empty server snapshot), so Date.now()
+  // is hydration-safe here and the labels stay current.
+  const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.max(1, Math.round(diffMs / 60000));
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.round(mins / 60);

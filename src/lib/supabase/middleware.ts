@@ -30,8 +30,20 @@ function isPublicPath(pathname: string): boolean {
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
   const { url, anonKey } = getPublicSupabaseEnv();
 
-  // Demo mode (no config, or backend explicitly set to "local"): do not enforce auth.
-  if (getDataBackend() === "local" || !url || !anonKey) {
+  // Explicit demo/local mode (dev/test only): do not enforce auth.
+  if (getDataBackend() === "local") {
+    return NextResponse.next({ request });
+  }
+
+  // Supabase mode but the public env is missing. In PRODUCTION this is a
+  // misconfiguration: fail CLOSED — never serve a protected route unauthenticated
+  // (do not silently degrade to the open demo backend). In dev, no-op.
+  if (!url || !anonKey) {
+    if (process.env.NODE_ENV === "production" && !isPublicPath(request.nextUrl.pathname)) {
+      return new NextResponse("Service unavailable: authentication backend is not configured.", {
+        status: 503,
+      });
+    }
     return NextResponse.next({ request });
   }
 

@@ -20,7 +20,14 @@ export type DataBackend = "local" | "supabase";
 export function getDataBackend(): DataBackend {
   const explicit = process.env.NEXT_PUBLIC_DATA_BACKEND;
   if (explicit === "local" || explicit === "supabase") return explicit;
-  return isSupabaseConfigured() ? "supabase" : "local";
+  if (isSupabaseConfigured()) return "supabase";
+  // Not explicitly configured AND Supabase env absent. In PRODUCTION, never
+  // silently infer the unauthenticated "local" demo backend (that would bypass
+  // auth/RLS): require an explicit NEXT_PUBLIC_DATA_BACKEND=local opt-in and
+  // otherwise resolve to "supabase" so the app fails CLOSED. In dev/test, the
+  // localStorage demo backend remains the convenient default.
+  if (process.env.NODE_ENV === "production") return "supabase";
+  return "local";
 }
 
 export function isSupabaseBackend(): boolean {

@@ -4,7 +4,6 @@
  */
 import type { MembershipRole, OrganizationRow } from "@/lib/supabase/database.types";
 import { db } from "./context";
-import { slugify } from "./mappers";
 
 export interface Organization {
   id: string;
@@ -42,17 +41,6 @@ export const organizationRepository = {
     return rows
       .filter((r) => r.organizations)
       .map((r) => ({ role: r.role, organization: toOrg(r.organizations!) }));
-  },
-
-  /** Create an organization (caller becomes owner) via the secure RPC. */
-  async create(name: string): Promise<Organization> {
-    const supabase = db();
-    const { data, error } = await supabase.rpc("create_organization", {
-      p_name: name.trim(),
-      p_slug: slugify(name),
-    });
-    if (error) throw error;
-    return toOrg(data as OrganizationRow);
   },
 
   /** The signed-in user's role in a given organization, or null. */
