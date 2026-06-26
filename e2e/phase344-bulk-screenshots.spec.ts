@@ -2,18 +2,28 @@ import { test, expect, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 
 /**
- * Phase 3.4.4 bulk-management screenshots, captured against the localStorage
- * DEMO backend (seed data) so they run without live Supabase or credentials.
+ * Phase 3.4.4 bulk-management screenshots. Runs against either backend:
+ *  - DEMO (localStorage seed): no auth needed — `WV_FORCE_DEMO=1 npx playwright test phase344-bulk`.
+ *  - Live SUPABASE: signs in with E2E_TEST_EMAIL/PASSWORD (skips if those are absent).
  * Covers the Part-5 additions: checkbox-only product selection plus multi-select
  * + bulk delete for Locations and Logos. NEVER confirms a delete (always Escape),
  * so no data is mutated, and makes NO OpenAI request.
- *
- * Run with the demo backend forced:  WV_FORCE_DEMO=1 npx playwright test phase344-bulk
  */
 const DIR = "artifacts/web-vision-phase-3-4-4-bulk";
 const MOBILE = { width: 390, height: 844 };
+const SUPABASE = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+const EMAIL = process.env.E2E_TEST_EMAIL ?? "";
+const PASSWORD = process.env.E2E_TEST_PASSWORD ?? "";
 
 test.describe.configure({ mode: "serial" });
+
+async function signIn(page: Page) {
+  await page.goto("/sign-in");
+  await page.getByLabel("Email").fill(EMAIL);
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect.poll(() => new URL(page.url()).pathname, { timeout: 20_000 }).toBe("/");
+}
 
 async function settle(page: Page, route: string) {
   await page.goto(route, { waitUntil: "networkidle" }).catch(() => undefined);
@@ -34,7 +44,10 @@ async function openBulkDialog(page: Page, region: string) {
   await expect(page.getByRole("dialog")).toBeVisible({ timeout: 8_000 });
 }
 
-test.describe("Phase 3.4.4 bulk management (demo backend)", () => {
+test.describe("Phase 3.4.4 bulk management", () => {
+  // A live Supabase run needs credentials to reach the auth-gated pages; the demo
+  // backend needs none.
+  test.skip(SUPABASE && (!EMAIL || !PASSWORD), "live Supabase run requires E2E_TEST_EMAIL / E2E_TEST_PASSWORD");
   test.beforeAll(() => mkdirSync(DIR, { recursive: true }));
 
   test("desktop: checkbox-only products + Locations & Logos bulk delete", async ({ page }) => {
@@ -42,6 +55,7 @@ test.describe("Phase 3.4.4 bulk management (demo backend)", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(String(e)));
+    if (SUPABASE) await signIn(page);
 
     // Products — checkboxes are always visible; selection is checkbox-only and an
     // image click opens the Lightbox (never selects).
@@ -75,6 +89,7 @@ test.describe("Phase 3.4.4 bulk management (demo backend)", () => {
   test("mobile: Locations bulk selection + confirmation", async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize(MOBILE);
+    if (SUPABASE) await signIn(page);
     await settle(page, "/locations");
     await selectUpToTwo(page);
     await expect(page.getByRole("region", { name: "Location selection" })).toBeVisible();
