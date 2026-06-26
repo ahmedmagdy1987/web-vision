@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { PendingAccess } from "@/components/auth/pending-access";
 import { resolveAccessGate } from "@/lib/auth/access-gate";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
@@ -35,7 +34,12 @@ function AuthSplash({ label }: { label: string }) {
   );
 }
 
-/** Membership/access lookup FAILED (network/server) — distinct from "no access". */
+/**
+ * System-setup error. In the single-org model every valid account is
+ * auto-provisioned into the Malahi org, so reaching here means provisioning
+ * genuinely failed (the Malahi org is missing, or the access check errored) —
+ * NOT an "Access pending" approval state. It is retryable.
+ */
 function MembershipError({ onRetry }: { onRetry: () => void }) {
   const { signOut } = useAuth();
   return (
@@ -45,9 +49,10 @@ function MembershipError({ onRetry }: { onRetry: () => void }) {
           <MalahiLogo imgClassName="h-8 dark:brightness-0 dark:invert" />
         </span>
         <div className="space-y-1">
-          <p className="text-foreground font-medium">We couldn&apos;t check your access</p>
+          <p className="text-foreground font-medium">We couldn&apos;t finish setting up your access</p>
           <p className="text-muted-foreground text-sm">
-            Something went wrong while loading your account. Check your connection and try again.
+            Your Malahi access couldn&apos;t be loaded just now. Try again, or contact your administrator if
+            this keeps happening.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -83,7 +88,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (gate === "redirect-signin") return <FullScreen>Redirecting to sign in…</FullScreen>;
   if (gate === "membership-loading") return <AuthSplash label="Checking your access…" />;
   if (gate === "membership-error") return <MembershipError onRetry={refreshMembership} />;
-  if (gate === "pending") return <PendingAccess />;
 
   // gate === "authorized" → render the full application shell.
   // Home hosts the full mockup-generation workflow and gets more horizontal room.

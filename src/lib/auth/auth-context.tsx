@@ -68,7 +68,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadOrgs = React.useCallback(async () => {
     setMembershipStatus("loading");
     try {
-      const memberships = await organizationRepository.listMine();
+      let memberships = await organizationRepository.listMine();
+      if (memberships.length === 0) {
+        // Single-org model: every valid account belongs to the one Malahi org.
+        // If the membership row is missing (older account / trigger didn't run),
+        // provision it server-side, then re-read — so the user goes straight into
+        // the app and NEVER sees an Access-pending screen.
+        const res = await fetch("/api/ensure-membership", { method: "POST" });
+        if (res.ok) memberships = await organizationRepository.listMine();
+      }
+      if (memberships.length === 0) {
+        // The Malahi org is missing or provisioning genuinely failed → a retryable
+        // SYSTEM SETUP error (never "Access pending").
+        setOrgs([]);
+        applyOrg(null);
+        setMembershipStatus("error");
+        return;
+      }
       setOrgs(memberships);
       const stored = storage.get<string>(ACTIVE_ORG_KEY);
       const next =

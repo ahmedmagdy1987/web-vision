@@ -36,12 +36,42 @@ if (error) {
   process.exit(1);
 }
 
+// Single-org model: grant the invited account ACTIVE 'editor' membership in the
+// canonical Malahi org immediately (idempotent; never creates another org; never
+// changes an existing role). The DB trigger + server-side fallback also cover
+// this, but doing it here means the membership exists the moment the invite is
+// created.
+let membership = "skipped";
+const userId = data?.user?.id;
+if (userId) {
+  const { data: org } = await admin.from("organizations").select("id").eq("slug", "malahi").maybeSingle();
+  if (!org) {
+    membership = "org-missing";
+  } else {
+    const { data: existing } = await admin
+      .from("organization_members")
+      .select("id")
+      .eq("organization_id", org.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existing) {
+      membership = "already-member";
+    } else {
+      const { error: mErr } = await admin
+        .from("organization_members")
+        .insert({ organization_id: org.id, user_id: userId, role: "editor", status: "active" });
+      membership = mErr && !/duplicate key|unique/i.test(mErr.message) ? `failed: ${mErr.message}` : "created";
+    }
+  }
+}
+
 console.log(
   JSON.stringify(
     {
       ok: true,
       invited: true,
-      userCreated: !!data?.user?.id,
+      userCreated: !!userId,
+      membership,
       redirectConfiguredTo: "/auth/callback?next=/auth/set-password",
       note: "Add this callback URL to the Supabase project's Redirect URLs allow-list.",
     },
