@@ -43,10 +43,14 @@ export function LogoDeleteDialog({
     [results, logo.id],
   );
 
-  const handleDelete = () => {
-    brandRepository.removeLogo(brandId, logo.id);
-    toast.success("Logo deleted.");
-    onOpenChange(false);
+  const handleDelete = async () => {
+    try {
+      await brandRepository.removeLogo(brandId, logo.id);
+      toast.success("Logo deleted.");
+      onOpenChange(false);
+    } catch {
+      toast.error("Could not delete this logo. It was not removed — please try again.");
+    }
   };
 
   const handleArchive = () => {
@@ -84,7 +88,7 @@ export function LogoDeleteDialog({
               Remove from active library
             </Button>
           ) : (
-            <Button type="button" variant="destructive" onClick={handleDelete}>
+            <Button type="button" variant="destructive" onClick={() => void handleDelete()}>
               <Trash2 className="size-4" />
               Delete logo
             </Button>

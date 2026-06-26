@@ -96,13 +96,16 @@ export class BrandRepository extends ObservableCollection<Brand> implements Bran
     this.update(brandId, (b) => ({ ...b, defaultLogoId: logoId, updatedAt: nowIso() }));
   }
 
-  removeLogo(brandId: ID, logoId: ID): void {
+  async removeLogo(brandId: ID, logoId: ID): Promise<void> {
     this.update(brandId, (b) => {
       const logos = b.logos.filter((l) => l.id !== logoId);
       const defaultLogoId = b.defaultLogoId === logoId ? logos[0]?.id : b.defaultLogoId;
       return { ...b, logos, defaultLogoId, updatedAt: nowIso() };
     });
   }
+
+  // The local store is the source of truth (no remote) — already current.
+  async refresh(): Promise<void> {}
 }
 
 export const brandRepository = new BrandRepository();

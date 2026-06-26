@@ -8,12 +8,22 @@ import { Button } from "@/components/ui/button";
 interface SelectionBarProps {
   count: number;
   onClear: () => void;
-  onOpenInStudio: () => void;
+  /** Optional "Use in mockup" action — Products only (a mockup composes products). */
+  onOpenInStudio?: () => void;
   onDelete?: () => void;
+  /** Singular lowercase entity noun shown in the bar. Defaults to "product". */
+  noun?: string;
 }
 
-export function SelectionBar({ count, onClear, onOpenInStudio, onDelete }: SelectionBarProps) {
+/**
+ * Floating multi-selection action bar, shared by the Products, Locations and
+ * Logos libraries. Selection is checkbox-driven; this bar surfaces the count and
+ * bulk actions (Clear, optional Use-in-mockup, optional Delete). The region label
+ * is "<Noun> selection" so each library has a stable, accessible target.
+ */
+export function SelectionBar({ count, onClear, onOpenInStudio, onDelete, noun = "product" }: SelectionBarProps) {
   const visible = count > 0;
+  const label = `${noun.charAt(0).toUpperCase()}${noun.slice(1)} selection`;
   return (
     <div
       className={cn(
@@ -23,17 +33,16 @@ export function SelectionBar({ count, onClear, onOpenInStudio, onDelete }: Selec
       aria-hidden={!visible}
     >
       <div
-        className={cn(
-          "bg-card text-card-foreground pointer-events-auto flex w-full max-w-xl items-center gap-3 rounded-xl border px-4 py-3 shadow-lg",
-        )}
+        className="bg-card text-card-foreground pointer-events-auto flex w-full max-w-xl items-center gap-3 rounded-xl border px-4 py-3 shadow-lg"
         role="region"
-        aria-label="Product selection"
+        aria-label={label}
       >
         <span className="bg-brand text-brand-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
           {count}
         </span>
         <span className="text-sm font-medium">
-          {count} product{count === 1 ? "" : "s"} selected
+          {count} {noun}
+          {count === 1 ? "" : "s"} selected
         </span>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={onClear}>
@@ -46,10 +55,12 @@ export function SelectionBar({ count, onClear, onOpenInStudio, onDelete }: Selec
               Delete
             </Button>
           )}
-          <Button size="sm" onClick={onOpenInStudio}>
-            <Sparkles />
-            Use in mockup
-          </Button>
+          {onOpenInStudio && (
+            <Button size="sm" onClick={onOpenInStudio}>
+              <Sparkles />
+              Use in mockup
+            </Button>
+          )}
         </div>
       </div>
     </div>

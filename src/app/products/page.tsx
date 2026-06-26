@@ -34,7 +34,7 @@ import {
   ProductFilters,
   type ProductFilterState,
 } from "@/components/products/product-filters";
-import { SelectionBar } from "@/components/products/selection-bar";
+import { SelectionBar } from "@/components/common/selection-bar";
 
 function matchesSearch(product: Product, query: string): boolean {
   const q = query.trim().toLowerCase();

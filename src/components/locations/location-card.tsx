@@ -7,9 +7,11 @@ import { LOCATION_USAGE_LABELS } from "@/lib/domain";
 import { useResults } from "@/lib/hooks";
 import { locationRepository } from "@/lib/repositories";
 import { isLocationReferenced } from "@/lib/services/asset-references";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,9 +30,19 @@ interface LocationCardProps {
   projectName?: string;
   onEdit: (location: Location) => void;
   onUseInStudio: (location: Location) => void;
+  /** When provided, the card shows a selection checkbox (multi-select for bulk). */
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-export function LocationCard({ location, projectName, onEdit, onUseInStudio }: LocationCardProps) {
+export function LocationCard({
+  location,
+  projectName,
+  onEdit,
+  onUseInStudio,
+  selected = false,
+  onToggleSelect,
+}: LocationCardProps) {
   const main = location.images.find((i) => i.id === location.mainImageId) ?? location.images[0];
 
   const images = React.useMemo(() => {
@@ -48,11 +60,22 @@ export function LocationCard({ location, projectName, onEdit, onUseInStudio }: L
   return (
     <>
     <Card
-      className={`group relative gap-0 overflow-hidden p-0 transition-all hover:-translate-y-0.5 hover:border-brand-border hover:shadow-md${
-        archived ? " opacity-60" : ""
-      }`}
+      className={cn(
+        "group relative gap-0 overflow-hidden p-0 transition-all hover:-translate-y-0.5 hover:border-brand-border hover:shadow-md",
+        selected && "border-brand ring-2 ring-brand-border",
+        archived && "opacity-60",
+      )}
     >
       <div className="relative">
+        {onToggleSelect && (
+          <div className="absolute top-2.5 left-2.5 z-10 rounded-md bg-background/80 p-1 backdrop-blur">
+            <Checkbox
+              checked={selected}
+              onCheckedChange={() => onToggleSelect(location.id)}
+              aria-label={`Select ${location.name}`}
+            />
+          </div>
+        )}
         <button
           type="button"
           onClick={() => images.length > 0 && setLightboxOpen(true)}

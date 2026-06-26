@@ -98,7 +98,11 @@ export interface BrandRepositoryApi extends ReadableStore<Brand> {
   replaceLogoAsset(brandId: ID, logoId: ID, asset: ImageAsset): void;
   setLogoStatus(brandId: ID, logoId: ID, status: LogoStatus): void;
   setDefaultLogo(brandId: ID, logoId: ID): void;
-  removeLogo(brandId: ID, logoId: ID): void;
+  /** Permanently delete a logo + its Storage object. Only for logos NOT
+   *  referenced by history; resolves on success, rejects on DB failure. */
+  removeLogo(brandId: ID, logoId: ID): Promise<void>;
+  /** Reload the authoritative collection from the backend. */
+  refresh(): Promise<void>;
 }
 
 export interface ProductRepositoryApi extends ReadableStore<Product> {

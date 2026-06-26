@@ -166,12 +166,10 @@ export function ProductCard({
           selected && "border-brand ring-1 ring-brand-border bg-brand-subtle/40",
           archived && "opacity-70",
         )}
-        onClick={() => onToggleSelect(product.id)}
       >
         <Checkbox
           checked={selected}
           onCheckedChange={() => onToggleSelect(product.id)}
-          onClick={(e) => e.stopPropagation()}
           aria-label={`Select ${product.name}`}
         />
         <button
@@ -215,7 +213,6 @@ export function ProductCard({
         selected && "border-brand ring-2 ring-brand-border",
         archived && "opacity-75",
       )}
-      onClick={() => onToggleSelect(product.id)}
     >
       <div className="relative">
         <button
@@ -235,18 +232,11 @@ export function ProductCard({
           </AspectFrame>
         </button>
 
-        {/* Select checkbox */}
-        <div
-          className={cn(
-            "absolute top-2.5 left-2.5 rounded-md bg-background/80 p-1 backdrop-blur transition-opacity",
-            "opacity-0 group-hover:opacity-100 focus-within:opacity-100",
-            selected && "opacity-100",
-          )}
-        >
+        {/* Select checkbox — always visible (selection is checkbox-only). */}
+        <div className="absolute top-2.5 left-2.5 rounded-md bg-background/80 p-1 backdrop-blur">
           <Checkbox
             checked={selected}
             onCheckedChange={() => onToggleSelect(product.id)}
-            onClick={(e) => e.stopPropagation()}
             aria-label={`Select ${product.name}`}
           />
         </div>

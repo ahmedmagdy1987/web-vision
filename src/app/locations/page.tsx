@@ -4,7 +4,9 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { MapPinned, Plus, SearchX } from "lucide-react";
 import type { Location } from "@/lib/domain";
-import { useLocations, useMounted } from "@/lib/hooks";
+import { useLocations, useMounted, useResults } from "@/lib/hooks";
+import { locationRepository } from "@/lib/repositories";
+import { isLocationReferenced } from "@/lib/services/asset-references";
 import { studioPrefill } from "@/lib/store/studio-draft";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,9 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { BulkDeleteDialog, type BulkDeleteItem } from "@/components/common/bulk-delete-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { SearchInput } from "@/components/common/search-input";
+import { SelectionBar } from "@/components/common/selection-bar";
 import { LocationCard } from "@/components/locations/location-card";
 import { LocationFormDialog } from "@/components/locations/location-form-dialog";
 
@@ -37,11 +41,14 @@ export default function LocationsPage() {
   const mounted = useMounted();
   const router = useRouter();
   const locations = useLocations();
+  const results = useResults();
 
   const [search, setSearch] = React.useState("");
   const [usageFilter, setUsageFilter] = React.useState<UsageFilter>("all");
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Location | null>(null);
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
 
   const filtered = React.useMemo(() => {
     return locations
@@ -51,6 +58,31 @@ export default function LocationsPage() {
       })
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }, [locations, usageFilter, search]);
+
+  const filteredIds = React.useMemo(() => new Set(filtered.map((l) => l.id)), [filtered]);
+  // Keep the action bar accurate: only count selections that are currently visible.
+  const visibleSelectedIds = React.useMemo(
+    () => selectedIds.filter((id) => filteredIds.has(id)),
+    [selectedIds, filteredIds],
+  );
+
+  const bulkItems: BulkDeleteItem[] = React.useMemo(
+    () =>
+      visibleSelectedIds
+        .map((id) => locations.find((l) => l.id === id))
+        .filter((l): l is Location => Boolean(l))
+        .map((l) => ({
+          id: l.id,
+          name: l.name,
+          thumbnailUrl: (l.images.find((i) => i.id === l.mainImageId) ?? l.images[0])?.url,
+          referenced: isLocationReferenced(results, l.id),
+        })),
+    [visibleSelectedIds, locations, results],
+  );
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const clearSelection = () => setSelectedIds([]);
 
   const openCreate = () => {
     setEditing(null);
@@ -134,12 +166,15 @@ export default function LocationsPage() {
         <>
           <p className="text-muted-foreground text-xs">
             {filtered.length} location{filtered.length === 1 ? "" : "s"}
+            {visibleSelectedIds.length > 0 && ` · ${visibleSelectedIds.length} selected`}
           </p>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((location) => (
               <LocationCard
                 key={location.id}
                 location={location}
+                selected={selectedIds.includes(location.id)}
+                onToggleSelect={toggleSelect}
                 onEdit={openEdit}
                 onUseInStudio={useInStudio}
               />
@@ -152,6 +187,24 @@ export default function LocationsPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         location={editing}
+      />
+
+      <SelectionBar
+        count={visibleSelectedIds.length}
+        noun="location"
+        onClear={clearSelection}
+        onDelete={() => visibleSelectedIds.length > 0 && setBulkDeleteOpen(true)}
+      />
+
+      <BulkDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        assetTypePlural="locations"
+        items={bulkItems}
+        archive={(id) => locationRepository.setStatus(id, "archived")}
+        remove={(id) => locationRepository.deleteLocation(id)}
+        refresh={() => locationRepository.refresh()}
+        onResult={(failed) => setSelectedIds(failed)}
       />
     </div>
   );

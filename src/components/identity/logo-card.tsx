@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,9 +30,19 @@ interface LogoCardProps {
   isDefault: boolean;
   /** Optional logo name shown on the card (used by the flat Logo Library). */
   name?: string;
+  /** When provided, the card shows a selection checkbox (multi-select for bulk). */
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-export function LogoCard({ logo, brandId, isDefault, name }: LogoCardProps) {
+export function LogoCard({
+  logo,
+  brandId,
+  isDefault,
+  name,
+  selected = false,
+  onToggleSelect,
+}: LogoCardProps) {
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [lightboxOpen, setLightboxOpen] = React.useState(false);
@@ -66,10 +77,20 @@ export function LogoCard({ logo, brandId, isDefault, name }: LogoCardProps) {
       className={cn(
         "group bg-card relative flex flex-col overflow-hidden rounded-xl border shadow-sm transition-colors",
         isDefault ? "border-brand-border ring-1 ring-brand-border" : "hover:border-brand-border/60",
+        selected && "border-brand ring-2 ring-brand-border",
         archived && "opacity-60",
       )}
     >
       <div className="bg-muted/40 relative">
+        {onToggleSelect && (
+          <div className="absolute top-2 left-2 z-10 rounded-md bg-background/80 p-1 backdrop-blur">
+            <Checkbox
+              checked={selected}
+              onCheckedChange={() => onToggleSelect(logo.id)}
+              aria-label={`Select ${name ?? LOGO_KIND_LABELS[logo.kind]} logo`}
+            />
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setLightboxOpen(true)}
@@ -83,7 +104,12 @@ export function LogoCard({ logo, brandId, isDefault, name }: LogoCardProps) {
           />
         </button>
         {isDefault && (
-          <span className="bg-brand text-brand-foreground absolute top-2 left-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold">
+          <span
+            className={cn(
+              "bg-brand text-brand-foreground absolute inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
+              onToggleSelect ? "bottom-2 left-2" : "top-2 left-2",
+            )}
+          >
             <Star className="size-3 fill-current" />
             Default
           </span>
