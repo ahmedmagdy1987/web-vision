@@ -17,6 +17,7 @@ import { storage } from "@/lib/repositories/storage";
 import { setActiveOrg, setActiveUser } from "@/lib/repositories/supabase/context";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import type { MembershipRole } from "@/lib/supabase/database.types";
+import type { MembershipStatus } from "./access-gate";
 import { can, type Capability } from "./permissions";
 
 export interface AuthUser {
@@ -31,6 +32,11 @@ export interface AuthValue {
   orgs: OrgMembership[];
   activeOrg: Organization | null;
   role: MembershipRole | null;
+  /** Status of the membership/access lookup for the signed-in user. Distinct
+   *  from session `ready` so the UI never treats "loading" as "no access". */
+  membershipStatus: MembershipStatus;
+  /** Re-run the membership/access check (used by the error-state retry). */
+  refreshMembership: () => void;
   signInWithPassword: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   selectOrg: (orgId: string) => void;
@@ -50,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<AuthUser | null>(null);
   const [orgs, setOrgs] = React.useState<OrgMembership[]>([]);
   const [activeOrgId, setActiveOrgIdState] = React.useState<string | null>(null);
+  const [membershipStatus, setMembershipStatus] = React.useState<MembershipStatus>("loading");
 
   const applyOrg = React.useCallback((id: string | null) => {
     setActiveOrgIdState(id);
@@ -59,14 +66,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loadOrgs = React.useCallback(async () => {
-    const memberships = await organizationRepository.listMine();
-    setOrgs(memberships);
-    const stored = storage.get<string>(ACTIVE_ORG_KEY);
-    const next =
-      memberships.find((m) => m.organization.id === stored)?.organization.id ??
-      memberships[0]?.organization.id ??
-      null;
-    applyOrg(next);
+    setMembershipStatus("loading");
+    try {
+      const memberships = await organizationRepository.listMine();
+      setOrgs(memberships);
+      const stored = storage.get<string>(ACTIVE_ORG_KEY);
+      const next =
+        memberships.find((m) => m.organization.id === stored)?.organization.id ??
+        memberships[0]?.organization.id ??
+        null;
+      applyOrg(next);
+      setMembershipStatus("ready");
+    } catch {
+      // A failed access check is DISTINCT from "no membership": surface a
+      // retryable error state instead of the Access-pending screen.
+      setOrgs([]);
+      applyOrg(null);
+      setMembershipStatus("error");
+    }
   }, [applyOrg]);
 
   React.useEffect(() => {
@@ -80,9 +97,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (u) {
         setUser({ id: u.id, email: u.email ?? null });
         setActiveUser(u.id);
-        await loadOrgs().catch(() => undefined);
+        // The session is resolved; the membership lookup then runs behind the
+        // "Checking your access…" state (loadOrgs owns membershipStatus).
+        setReady(true);
+        await loadOrgs();
+      } else {
+        setReady(true);
       }
-      setReady(true);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -92,8 +113,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!u) {
         setOrgs([]);
         applyOrg(null);
+        setMembershipStatus("loading");
       } else {
-        void loadOrgs().catch(() => undefined);
+        // Sign-in: loadOrgs synchronously enters the membership-loading state, so
+        // the app never renders the pending screen during the fetch.
+        void loadOrgs();
       }
     });
 
@@ -110,6 +134,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     orgs,
     activeOrg: orgs.find((o) => o.organization.id === activeOrgId)?.organization ?? null,
     role: orgs.find((o) => o.organization.id === activeOrgId)?.role ?? null,
+    membershipStatus,
+    refreshMembership: () => void loadOrgs(),
     signInWithPassword: async (email, password) => {
       try {
         const { error } = await getBrowserSupabase().auth.signInWithPassword({ email, password });
