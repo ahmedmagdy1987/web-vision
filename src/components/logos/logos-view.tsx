@@ -8,6 +8,7 @@ import { isLogoReferenced } from "@/lib/services/asset-references";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BulkDeleteDialog, type BulkDeleteItem } from "@/components/common/bulk-delete-dialog";
+import { LibraryStatusFilter, matchesStatusFilter, type LibraryStatus } from "@/components/common/library-status-filter";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { SearchInput } from "@/components/common/search-input";
@@ -25,7 +26,7 @@ export function LogosView() {
   const mounted = useMounted();
   const results = useResults();
   const [search, setSearch] = React.useState("");
-  const [showArchived, setShowArchived] = React.useState(false);
+  const [statusFilter, setStatusFilter] = React.useState<LibraryStatus>("active");
   const [uploadOpen, setUploadOpen] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
@@ -36,10 +37,10 @@ export function LogosView() {
         .filter((b) => b.status === "active")
         .flatMap((b) =>
           b.logos
-            .filter((l) => (showArchived ? true : l.status === "active"))
+            .filter((l) => matchesStatusFilter(l.status, statusFilter))
             .map((logo) => ({ brand: b, logo, isDefault: b.defaultLogoId === logo.id })),
         ),
-    [brands, showArchived],
+    [brands, statusFilter],
   );
 
   const term = search.trim().toLowerCase();
@@ -64,6 +65,7 @@ export function LogosView() {
             name: entry.brand.name,
             thumbnailUrl: entry.logo.asset.url,
             referenced: isLogoReferenced(results, entry.logo.id),
+            archived: entry.logo.status === "archived",
           },
         ];
       }),
@@ -86,9 +88,7 @@ export function LogosView() {
 
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput value={search} onValueChange={setSearch} placeholder="Search logos…" containerClassName="sm:max-w-xs" />
-        <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived((v) => !v)}>
-          Show archived
-        </Button>
+        <LibraryStatusFilter value={statusFilter} onChange={setStatusFilter} />
       </div>
 
       {!mounted ? (

@@ -6,6 +6,7 @@ import type { GenerationResultRow } from "@/lib/supabase/database.types";
 import { SupabaseCollection } from "./collection";
 import { db, getActiveOrgId, requireActiveOrgId } from "./context";
 import { resultFromRow, type SignUrl } from "./mappers";
+import { reportRepositoryError } from "../error-reporter";
 import type { ResultRepositoryApi } from "../types";
 
 export class SupabaseResultRepository extends SupabaseCollection<GenerationResult> implements ResultRepositoryApi {
@@ -105,5 +106,39 @@ export class SupabaseResultRepository extends SupabaseCollection<GenerationResul
     const current = this.getById(id);
     if (!current) return undefined;
     return this.setFavorite(id, !current.favorite);
+  }
+
+  /** Hard delete: remove the generated image from Storage + the result row.
+   *  Awaitable so gallery flows can report per-item success/failure. The job is
+   *  intentionally PRESERVED (audit history). Rolls the cache back and rethrows on
+   *  a DB failure; a Storage-only failure is a recoverable warning. */
+  async deleteResult(id: ID): Promise<void> {
+    const prev = this.getById(id);
+    if (!prev) return;
+    this.cacheRemove(id);
+    try {
+      const supabase = db();
+      const { data: row } = await supabase
+        .from("generation_results")
+        .select("storage_path")
+        .eq("id", id)
+        .maybeSingle();
+      const path = (row as { storage_path?: string } | null)?.storage_path;
+      const { error } = await supabase.from("generation_results").delete().eq("id", id);
+      if (error) throw error;
+      if (path) {
+        const { failed } = await removeObjects(supabase, [path]);
+        if (failed.length) {
+          reportRepositoryError({
+            context: "clean up the storage object for the deleted result",
+            error: new Error("Storage cleanup incomplete"),
+            reverted: false,
+          });
+        }
+      }
+    } catch (e) {
+      this.cachePrepend(prev);
+      throw e;
+    }
   }
 }

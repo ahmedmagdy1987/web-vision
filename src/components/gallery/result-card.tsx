@@ -9,11 +9,16 @@ import { readableForeground } from "@/lib/theme/brand-accent";
 import { AspectFrame } from "@/components/common/aspect-frame";
 import { AssetImage } from "@/components/common/asset-image";
 import { ReviewBadge } from "@/components/common/status-badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { ResultCardMenu } from "./result-card-menu";
 
 interface ResultCardProps {
   result: GenerationResult;
+  /** When provided, the card shows a selection checkbox (multi-select for bulk). */
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 /** Summarize a product-name list into a single line. */
@@ -23,7 +28,7 @@ function summarizeNames(names: string[]): string {
   return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
 }
 
-export function ResultCard({ result }: ResultCardProps) {
+export function ResultCard({ result, selected = false, onToggleSelect }: ResultCardProps) {
   const { snapshot } = result;
   const created = new Date(result.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   // Mock results are SVG placeholders; real provider results (e.g. OpenAI WebP) are not.
@@ -39,6 +44,7 @@ export function ResultCard({ result }: ResultCardProps) {
       className={cn(
         "group bg-card text-card-foreground relative flex flex-col overflow-hidden rounded-xl border shadow-sm transition-all",
         "hover:border-brand-border hover:shadow-md focus-within:ring-2 focus-within:ring-ring/50",
+        selected && "border-brand ring-2 ring-brand-border",
       )}
     >
       <div className="relative">
@@ -52,24 +58,39 @@ export function ResultCard({ result }: ResultCardProps) {
           />
         </AspectFrame>
 
-        <button
-          type="button"
-          onClick={handleToggleFavorite}
-          aria-label={result.favorite ? "Remove from favorites" : "Add to favorites"}
-          aria-pressed={result.favorite}
-          className={cn(
-            "absolute top-2 right-2 z-20 flex size-8 items-center justify-center rounded-full backdrop-blur-sm transition-colors outline-none",
-            "focus-visible:ring-2 focus-visible:ring-ring/70",
-            result.favorite
-              ? "bg-background/90 text-warning hover:bg-background"
-              : "bg-background/60 text-muted-foreground hover:bg-background/90 hover:text-foreground",
+        {/* Top-left: selection checkbox (interactive) + review badge. The container
+            is click-through so taps that miss the checkbox still open the result. */}
+        <div className="pointer-events-none absolute top-2 left-2 z-30 flex items-center gap-1.5">
+          {onToggleSelect && (
+            <span className="bg-background/80 pointer-events-auto rounded-md p-1 backdrop-blur">
+              <Checkbox
+                checked={selected}
+                onCheckedChange={() => onToggleSelect(result.id)}
+                aria-label={`Select ${snapshot.brandName} mockup`}
+              />
+            </span>
           )}
-        >
-          <Star className={cn("size-4", result.favorite && "fill-current")} />
-        </button>
-
-        <div className="pointer-events-none absolute top-2 left-2 z-20">
           <ReviewBadge review={result.review} />
+        </div>
+
+        {/* Top-right: favorite + actions menu. */}
+        <div className="absolute top-2 right-2 z-30 flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handleToggleFavorite}
+            aria-label={result.favorite ? "Remove from favorites" : "Add to favorites"}
+            aria-pressed={result.favorite}
+            className={cn(
+              "flex size-8 items-center justify-center rounded-full backdrop-blur-sm transition-colors outline-none",
+              "focus-visible:ring-2 focus-visible:ring-ring/70",
+              result.favorite
+                ? "bg-background/90 text-warning hover:bg-background"
+                : "bg-background/60 text-muted-foreground hover:bg-background/90 hover:text-foreground",
+            )}
+          >
+            <Star className={cn("size-4", result.favorite && "fill-current")} />
+          </button>
+          <ResultCardMenu result={result} className="bg-background/60 backdrop-blur-sm hover:bg-background/90" />
         </div>
 
         {isMock && (

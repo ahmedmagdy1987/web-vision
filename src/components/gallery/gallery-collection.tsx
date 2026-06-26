@@ -12,34 +12,54 @@ export type GalleryView = "grid" | "list";
 interface GalleryCollectionProps {
   results: GenerationResult[];
   view: GalleryView;
+  selectedIds?: string[];
+  onToggleSelect?: (id: string) => void;
 }
 
-export function GalleryGrid({ results }: { results: GenerationResult[] }) {
+interface ItemsProps {
+  results: GenerationResult[];
+  selectedIds?: string[];
+  onToggleSelect?: (id: string) => void;
+}
+
+export function GalleryGrid({ results, selectedIds, onToggleSelect }: ItemsProps) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-4">
       {results.map((result) => (
         <ResultCardBoundary key={result.id}>
-          <ResultCard result={result} />
+          <ResultCard
+            result={result}
+            selected={selectedIds?.includes(result.id)}
+            onToggleSelect={onToggleSelect}
+          />
         </ResultCardBoundary>
       ))}
     </div>
   );
 }
 
-export function GalleryList({ results }: { results: GenerationResult[] }) {
+export function GalleryList({ results, selectedIds, onToggleSelect }: ItemsProps) {
   return (
     <div className="flex flex-col gap-2.5">
       {results.map((result) => (
         <ResultCardBoundary key={result.id}>
-          <ResultRow result={result} />
+          <ResultRow
+            result={result}
+            selected={selectedIds?.includes(result.id)}
+            onToggleSelect={onToggleSelect}
+          />
         </ResultCardBoundary>
       ))}
     </div>
   );
 }
 
-export function GalleryCollection({ results, view }: GalleryCollectionProps) {
-  return view === "grid" ? <GalleryGrid results={results} /> : <GalleryList results={results} />;
+export function GalleryCollection({ results, view, selectedIds, onToggleSelect }: GalleryCollectionProps) {
+  return view === "grid" ? (
+    <GalleryGrid results={results} selectedIds={selectedIds} onToggleSelect={onToggleSelect} />
+  ) : (
+    <GalleryList results={results} selectedIds={selectedIds} onToggleSelect={onToggleSelect} />
+  );
 }
 
 export function GallerySkeleton({ view }: { view: GalleryView }) {

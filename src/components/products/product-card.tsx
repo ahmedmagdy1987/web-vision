@@ -94,6 +94,7 @@ export function ProductCard({
         name={product.name}
         thumbnailUrl={product.mainImage?.url}
         referenceCount={referenceCount}
+        archived={archived}
         onArchive={() => {
           productRepository.setStatus(product.id, "archived");
           toast.success(`${product.name} removed from active library`);

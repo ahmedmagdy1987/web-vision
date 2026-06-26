@@ -13,9 +13,12 @@ import {
   useProjects,
   useResults,
 } from "@/lib/hooks";
+import { resultRepository } from "@/lib/repositories";
+import { BulkDeleteDialog, type BulkDeleteItem } from "@/components/common/bulk-delete-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { SearchInput } from "@/components/common/search-input";
+import { SelectionBar } from "@/components/common/selection-bar";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -43,6 +46,8 @@ export default function GalleryPage() {
 
   const [view, setView] = React.useState<GalleryView>("grid");
   const [filters, setFilters] = React.useState<GalleryFilterState>(DEFAULT_FILTERS);
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
 
   const filtered = React.useMemo(
     () => applyGalleryFilters(results, filters, searchQuery),
@@ -52,8 +57,27 @@ export default function GalleryPage() {
   const totalCount = results.length;
   const filtersActive = hasActiveFilters(filters) || searchQuery.trim().length > 0;
 
+  const filteredIds = React.useMemo(() => new Set(filtered.map((r) => r.id)), [filtered]);
+  const visibleSelectedIds = React.useMemo(
+    () => selectedIds.filter((id) => filteredIds.has(id)),
+    [selectedIds, filteredIds],
+  );
+  const bulkItems: BulkDeleteItem[] = React.useMemo(
+    () =>
+      visibleSelectedIds.flatMap((id) => {
+        const r = results.find((x) => x.id === id);
+        if (!r) return [];
+        // Gallery results are leaf records — always eligible for permanent delete.
+        return [{ id: r.id, name: `${r.snapshot.brandName} mockup`, thumbnailUrl: r.image.url, referenced: false }];
+      }),
+    [visibleSelectedIds, results],
+  );
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const clearSelection = () => setSelectedIds([]);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <PageHeader
         title="Gallery"
         description="Browse, review and reuse every generated mockup."
@@ -144,10 +168,34 @@ export default function GalleryPage() {
           <p className="text-muted-foreground text-sm" aria-live="polite">
             {filtered.length} {filtered.length === 1 ? "result" : "results"}
             {filtersActive && totalCount !== filtered.length ? ` of ${totalCount}` : ""}
+            {visibleSelectedIds.length > 0 && ` · ${visibleSelectedIds.length} selected`}
           </p>
-          <GalleryCollection results={filtered} view={view} />
+          <GalleryCollection
+            results={filtered}
+            view={view}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+          />
         </div>
       )}
+
+      <SelectionBar
+        count={visibleSelectedIds.length}
+        noun="result"
+        onClear={clearSelection}
+        onDelete={() => visibleSelectedIds.length > 0 && setBulkDeleteOpen(true)}
+      />
+
+      <BulkDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        assetTypePlural="results"
+        items={bulkItems}
+        archive={() => {}}
+        remove={(id) => resultRepository.deleteResult(id)}
+        refresh={() => resultRepository.refresh()}
+        onResult={(remaining) => setSelectedIds(remaining)}
+      />
     </div>
   );
 }

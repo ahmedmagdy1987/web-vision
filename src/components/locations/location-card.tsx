@@ -24,6 +24,7 @@ import { AspectFrame } from "@/components/common/aspect-frame";
 import { AssetImage } from "@/components/common/asset-image";
 import { DeleteAssetDialog } from "@/components/common/delete-asset-dialog";
 import { ImageLightbox } from "@/components/common/image-lightbox";
+import { EntityStatusBadge } from "@/components/common/status-badge";
 
 interface LocationCardProps {
   location: Location;
@@ -141,6 +142,12 @@ export function LocationCard({
           </DropdownMenu>
         </div>
 
+        {archived && (
+          <div className="absolute bottom-2 left-2 z-10">
+            <EntityStatusBadge status={location.status ?? "archived"} />
+          </div>
+        )}
+
         {location.images.length > 0 && (
           <div
             className="text-foreground absolute right-2 bottom-2 flex items-center gap-1 rounded-md bg-background/80 px-1.5 py-0.5 text-[10px] font-medium backdrop-blur"
@@ -187,6 +194,7 @@ export function LocationCard({
       name={location.name}
       thumbnailUrl={main?.url}
       referenceCount={referenceCount}
+      archived={archived}
       onArchive={() => {
         locationRepository.setStatus(location.id, "archived");
         toast.success(`${location.name} removed from active library`);

@@ -29,6 +29,10 @@ export class ResultRepository extends ObservableCollection<GenerationResult> imp
     return this.update(id, (r) => ({ ...r, favorite: !r.favorite, updatedAt: nowIso() }));
   }
 
+  async deleteResult(id: ID): Promise<void> {
+    this.remove(id);
+  }
+
   // The local store is the source of truth (no remote) — already current.
   async refresh(): Promise<void> {}
 }
