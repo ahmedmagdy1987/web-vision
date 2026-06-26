@@ -109,6 +109,7 @@ export default function ProductsPage() {
           name: p.name,
           thumbnailUrl: p.mainImage?.url,
           referenced: isProductReferenced(results, p.id),
+          archived: p.status === "archived",
         })),
     [visibleSelectedIds, products, results],
   );

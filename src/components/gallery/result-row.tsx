@@ -10,11 +10,15 @@ import { readableForeground } from "@/lib/theme/brand-accent";
 import { AssetImage } from "@/components/common/asset-image";
 import { ReviewBadge } from "@/components/common/status-badge";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { ResultCardMenu } from "./result-card-menu";
 
 interface ResultRowProps {
   result: GenerationResult;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 function summarizeNames(names: string[]): string {
@@ -26,7 +30,7 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-export function ResultRow({ result }: ResultRowProps) {
+export function ResultRow({ result, selected = false, onToggleSelect }: ResultRowProps) {
   const { snapshot } = result;
 
   const handleToggleFavorite = React.useCallback(() => {
@@ -39,8 +43,19 @@ export function ResultRow({ result }: ResultRowProps) {
       className={cn(
         "group bg-card text-card-foreground relative flex items-center gap-3 rounded-xl border p-2.5 shadow-sm transition-all sm:gap-4",
         "hover:border-brand-border hover:shadow-md focus-within:ring-2 focus-within:ring-ring/50",
+        selected && "border-brand ring-2 ring-brand-border",
       )}
     >
+      {onToggleSelect && (
+        <span className="relative z-20 shrink-0">
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onToggleSelect(result.id)}
+            aria-label={`Select ${snapshot.brandName} mockup`}
+          />
+        </span>
+      )}
+
       <div className="bg-muted relative size-16 shrink-0 overflow-hidden rounded-lg sm:size-20">
         <AssetImage
           src={result.image.url}
@@ -97,21 +112,24 @@ export function ResultRow({ result }: ResultRowProps) {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={handleToggleFavorite}
-        aria-label={result.favorite ? "Remove from favorites" : "Add to favorites"}
-        aria-pressed={result.favorite}
-        className={cn(
-          "relative z-20 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors outline-none",
-          "focus-visible:ring-2 focus-visible:ring-ring/70",
-          result.favorite
-            ? "text-warning hover:bg-warning/10"
-            : "text-muted-foreground hover:bg-accent hover:text-foreground",
-        )}
-      >
-        <Star className={cn("size-4", result.favorite && "fill-current")} />
-      </button>
+      <div className="relative z-20 flex shrink-0 items-center gap-0.5">
+        <button
+          type="button"
+          onClick={handleToggleFavorite}
+          aria-label={result.favorite ? "Remove from favorites" : "Add to favorites"}
+          aria-pressed={result.favorite}
+          className={cn(
+            "flex size-9 items-center justify-center rounded-full transition-colors outline-none",
+            "focus-visible:ring-2 focus-visible:ring-ring/70",
+            result.favorite
+              ? "text-warning hover:bg-warning/10"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+          )}
+        >
+          <Star className={cn("size-4", result.favorite && "fill-current")} />
+        </button>
+        <ResultCardMenu result={result} />
+      </div>
 
       {/* Stretched link makes the whole row a single accessible navigation target. */}
       <Link

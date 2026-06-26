@@ -9,6 +9,10 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     background_color: "#0b0b0f",
     theme_color: "#0d9488",
-    icons: [{ src: "/icon.svg", type: "image/svg+xml", sizes: "any" }],
+    // Square icons derived from the official Malahi logo (public/malahi-logo.png).
+    icons: [
+      { src: "/icon-192.png", type: "image/png", sizes: "192x192", purpose: "any" },
+      { src: "/icon-512.png", type: "image/png", sizes: "512x512", purpose: "any" },
+    ],
   };
 }

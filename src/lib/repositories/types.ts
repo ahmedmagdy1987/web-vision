@@ -162,6 +162,9 @@ export interface ResultRepositoryApi extends ReadableStore<GenerationResult> {
   setReview(id: ID, review: ResultReview): GenerationResult | undefined;
   setFavorite(id: ID, favorite: boolean): GenerationResult | undefined;
   toggleFavorite(id: ID): GenerationResult | undefined;
+  /** Permanently delete a generated result: its DB record + the generated image
+   *  in private Storage. The generation job is preserved (audit history). */
+  deleteResult(id: ID): Promise<void>;
   /** Reload the authoritative results collection from the backend (Supabase). */
   refresh(): Promise<void>;
 }

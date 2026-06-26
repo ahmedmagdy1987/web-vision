@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BulkDeleteDialog, type BulkDeleteItem } from "@/components/common/bulk-delete-dialog";
+import { LibraryStatusFilter, matchesStatusFilter, type LibraryStatus } from "@/components/common/library-status-filter";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { SearchInput } from "@/components/common/search-input";
@@ -45,6 +46,7 @@ export default function LocationsPage() {
 
   const [search, setSearch] = React.useState("");
   const [usageFilter, setUsageFilter] = React.useState<UsageFilter>("all");
+  const [statusFilter, setStatusFilter] = React.useState<LibraryStatus>("active");
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Location | null>(null);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
@@ -53,11 +55,12 @@ export default function LocationsPage() {
   const filtered = React.useMemo(() => {
     return locations
       .filter((l) => {
+        if (!matchesStatusFilter(l.status ?? "active", statusFilter)) return false;
         if (usageFilter !== "all" && l.usage !== usageFilter) return false;
         return matchesSearch(l, search);
       })
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  }, [locations, usageFilter, search]);
+  }, [locations, usageFilter, statusFilter, search]);
 
   const filteredIds = React.useMemo(() => new Set(filtered.map((l) => l.id)), [filtered]);
   // Keep the action bar accurate: only count selections that are currently visible.
@@ -76,6 +79,7 @@ export default function LocationsPage() {
           name: l.name,
           thumbnailUrl: (l.images.find((i) => i.id === l.mainImageId) ?? l.images[0])?.url,
           referenced: isLocationReferenced(results, l.id),
+          archived: l.status === "archived",
         })),
     [visibleSelectedIds, locations, results],
   );
@@ -117,7 +121,8 @@ export default function LocationsPage() {
           placeholder="Search sites…"
           containerClassName="sm:max-w-xs"
         />
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <LibraryStatusFilter value={statusFilter} onChange={setStatusFilter} />
           <Select value={usageFilter} onValueChange={(v) => setUsageFilter(v as UsageFilter)}>
             <SelectTrigger size="sm" className="w-auto min-w-28">
               <SelectValue />
@@ -156,6 +161,7 @@ export default function LocationsPage() {
               onClick={() => {
                 setSearch("");
                 setUsageFilter("all");
+                setStatusFilter("active");
               }}
             >
               Clear filters

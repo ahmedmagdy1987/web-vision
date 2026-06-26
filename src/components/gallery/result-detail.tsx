@@ -24,6 +24,7 @@ import { AspectFrame } from "@/components/common/aspect-frame";
 import { AssetImage } from "@/components/common/asset-image";
 import { ImageLightbox } from "@/components/common/image-lightbox";
 import { ReviewBadge } from "@/components/common/status-badge";
+import { ResultCardMenu } from "./result-card-menu";
 import { downloadResultFile } from "@/lib/services/download-result";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -195,7 +196,14 @@ export function ResultDetail({ result }: ResultDetailProps) {
               </span>
             </div>
           </div>
-          <ReviewBadge review={result.review} />
+          <div className="flex shrink-0 items-center gap-1">
+            <ReviewBadge review={result.review} />
+            <ResultCardMenu
+              result={result}
+              onDeleted={() => router.push("/gallery")}
+              triggerLabel="Result actions"
+            />
+          </div>
         </div>
 
         {/* Review */}

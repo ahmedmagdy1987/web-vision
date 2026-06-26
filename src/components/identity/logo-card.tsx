@@ -230,6 +230,7 @@ export function LogoCard({
         name={name ?? LOGO_KIND_LABELS[logo.kind]}
         thumbnailUrl={logo.asset.url}
         referenceCount={referenceCount}
+        archived={archived}
         onArchive={() => {
           brandRepository.setLogoStatus(brandId, logo.id, "archived");
           toast.success("Logo removed from the active library.");
