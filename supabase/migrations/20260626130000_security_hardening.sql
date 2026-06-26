@@ -9,10 +9,17 @@
 -- changing memberships).
 
 -- 1) No self-service organization creation. The single-Malahi model never lets a
---    user create another org, but create_organization() was still granted to
---    `authenticated`, so any signed-in user could call it from the browser and
---    become owner of a new orphan org. Restrict it to service_role / migrations.
+--    user create another org, but create_organization() was still executable from
+--    the browser, so any signed-in user could call it and become owner of a new
+--    orphan org. `CREATE FUNCTION` grants EXECUTE to PUBLIC by default, and the
+--    grants migration also granted it to `authenticated` — so revoking from
+--    `authenticated` alone is NOT enough (PUBLIC still confers EXECUTE). Revoke
+--    from PUBLIC, anon and authenticated, then restore it ONLY to service_role
+--    (trusted server / migrations).
+revoke execute on function public.create_organization(text, text) from public;
+revoke execute on function public.create_organization(text, text) from anon;
 revoke execute on function public.create_organization(text, text) from authenticated;
+grant  execute on function public.create_organization(text, text) to service_role;
 
 -- 2) Membership role-escalation + last-owner protection. The members_update /
 --    members_delete RLS policies only check the CALLER's role (owner|admin), not
