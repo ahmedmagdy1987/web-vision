@@ -4,7 +4,9 @@ import * as React from "react";
 import { MoreVertical, Pencil, RefreshCw, Star, Trash2 } from "lucide-react";
 import type { LogoAsset } from "@/lib/domain";
 import { LOGO_KIND_LABELS } from "@/lib/domain";
+import { useResults } from "@/lib/hooks";
 import { brandRepository } from "@/lib/repositories";
+import { countLogoReferences } from "@/lib/services/asset-references";
 import { filesToImageAssets } from "@/lib/upload";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
@@ -20,8 +22,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AssetImage } from "@/components/common/asset-image";
+import { DeleteAssetDialog } from "@/components/common/delete-asset-dialog";
 import { ImageLightbox } from "@/components/common/image-lightbox";
-import { LogoDeleteDialog } from "@/components/logos/logo-delete-dialog";
 import { LogoEditDialog } from "./logo-edit-dialog";
 
 interface LogoCardProps {
@@ -49,6 +51,7 @@ export function LogoCard({
   const replaceRef = React.useRef<HTMLInputElement>(null);
 
   const archived = logo.status === "archived";
+  const referenceCount = countLogoReferences(useResults(), logo.id);
 
   const handleSetDefault = () => {
     brandRepository.setDefaultLogo(brandId, logo.id);
@@ -220,12 +223,21 @@ export function LogoCard({
 
       <LogoEditDialog open={editOpen} onOpenChange={setEditOpen} logo={logo} brandId={brandId} />
 
-      <LogoDeleteDialog
+      <DeleteAssetDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        logo={logo}
-        brandId={brandId}
+        assetType="Logo"
         name={name ?? LOGO_KIND_LABELS[logo.kind]}
+        thumbnailUrl={logo.asset.url}
+        referenceCount={referenceCount}
+        onArchive={() => {
+          brandRepository.setLogoStatus(brandId, logo.id, "archived");
+          toast.success("Logo removed from the active library.");
+        }}
+        onDelete={async () => {
+          await brandRepository.removeLogo(brandId, logo.id);
+          toast.success("Logo deleted.");
+        }}
       />
 
       <ImageLightbox

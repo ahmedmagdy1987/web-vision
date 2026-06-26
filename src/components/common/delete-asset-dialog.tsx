@@ -20,19 +20,24 @@ interface DeleteAssetDialogProps {
   assetType: string;
   name: string;
   thumbnailUrl?: string;
-  /** True → the asset is used by history; only archiving is offered. */
-  referenced: boolean;
+  /** How many historical Gallery mockups use this asset (0 = unreferenced). */
+  referenceCount: number;
   /** Archive (hide from new-generation pickers; preserve history). */
   onArchive: () => void;
-  /** Permanent delete (only reached when NOT referenced). */
+  /** Permanent delete (DB record + Storage images + join rows). */
   onDelete: () => Promise<void>;
 }
 
 /**
- * Custom Malahi-styled delete/archive confirmation — never the browser `confirm`.
- * Referenced assets are protected (archive only, clearly explained); unreferenced
- * assets can be permanently deleted. Shows a loading state and a safe failure
- * state that leaves the asset untouched.
+ * Custom Malahi-styled delete/archive confirmation — never the browser `confirm`,
+ * and Delete is NEVER silently turned into Archive.
+ *
+ *  - Unreferenced asset → a single, explicit permanent-delete confirmation.
+ *  - Referenced asset → first explains it's used by N mockups and offers Cancel /
+ *    "Remove from active library" (archive). Permanent deletion is still possible
+ *    via a clearly-labeled second step ("Permanently delete anyway"): the existing
+ *    mockups keep their generated images + details (the snapshot is self-contained),
+ *    so only the source asset and its uploaded images are removed.
  */
 export function DeleteAssetDialog({
   open,
@@ -40,30 +45,44 @@ export function DeleteAssetDialog({
   assetType,
   name,
   thumbnailUrl,
-  referenced,
+  referenceCount,
   onArchive,
   onDelete,
 }: DeleteAssetDialogProps) {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  // For a referenced asset, the user must explicitly escalate past the archive
+  // option to reach permanent deletion.
+  const [confirmPermanent, setConfirmPermanent] = React.useState(false);
   const lower = assetType.toLowerCase();
+  const referenced = referenceCount > 0;
+  const mockups = `${referenceCount} previous mockup${referenceCount === 1 ? "" : "s"}`;
+
+  // Reset transient state on every close path so the next open starts clean.
+  const reset = React.useCallback(() => {
+    setConfirmPermanent(false);
+    setError(null);
+  }, []);
 
   const close = (next: boolean) => {
     if (busy) return;
-    setError(null);
+    if (!next) reset();
     onOpenChange(next);
   };
 
-  const handleConfirm = async () => {
+  const handleArchive = () => {
+    if (busy) return;
+    onArchive();
+    reset();
+    onOpenChange(false);
+  };
+
+  const handlePermanentDelete = async () => {
     setError(null);
-    if (referenced) {
-      onArchive();
-      onOpenChange(false);
-      return;
-    }
     setBusy(true);
     try {
       await onDelete();
+      reset();
       onOpenChange(false);
     } catch {
       setError(`Could not delete this ${lower}. It was not removed — please try again.`);
@@ -72,17 +91,25 @@ export function DeleteAssetDialog({
     }
   };
 
+  // The permanent-delete view is shown for unreferenced assets, or once a
+  // referenced asset has been escalated.
+  const showPermanent = !referenced || confirmPermanent;
+
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent showClose={!busy} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {referenced ? `Remove ${assetType} from active library` : `Delete ${assetType}`}
+            {showPermanent
+              ? `${referenced ? "Permanently delete" : "Delete"} ${assetType}${referenced ? "?" : ""}`
+              : `${assetType} is used by existing mockups`}
           </DialogTitle>
           <DialogDescription>
-            {referenced
-              ? `This ${lower} is used by previous mockups and cannot be permanently deleted.`
-              : `This permanently deletes the ${lower} and its images. This cannot be undone.`}
+            {showPermanent && referenced
+              ? `Your ${mockups} keep their generated images and details. Only this source ${lower} and its uploaded images are removed. This can't be undone.`
+              : showPermanent
+                ? `This permanently deletes the ${lower} and its images. This can't be undone.`
+                : `This ${lower} is used by ${mockups} and can't be permanently deleted without affecting history.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -96,15 +123,17 @@ export function DeleteAssetDialog({
           </div>
         </div>
 
-        {referenced ? (
+        {!showPermanent ? (
           <p className="text-muted-foreground text-xs">
-            Removing it hides the {lower} from new mockups but keeps your existing Gallery results and
-            downloads intact. You can restore it later.
+            Removing it from the active library hides the {lower} from new mockups but keeps your existing
+            Gallery results and downloads intact. You can restore it later.
           </p>
         ) : (
           <p className="text-muted-foreground flex items-start gap-1.5 text-xs">
             <AlertTriangle className="text-warning mt-0.5 size-3.5 shrink-0" />
-            Not used by any mockup yet — safe to delete permanently.
+            {referenced
+              ? "Existing mockups are unaffected — only the source asset is removed."
+              : `Not used by any mockup yet — safe to delete permanently.`}
           </p>
         )}
 
@@ -114,21 +143,41 @@ export function DeleteAssetDialog({
           </p>
         )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => close(false)} disabled={busy}>
-            Cancel
-          </Button>
-          <Button variant={referenced ? "default" : "destructive"} onClick={handleConfirm} disabled={busy}>
-            {busy ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : referenced ? (
-              <Archive className="size-4" />
-            ) : (
-              <Trash2 className="size-4" />
-            )}
-            {referenced ? "Remove from active library" : `Delete ${assetType}`}
-          </Button>
-        </DialogFooter>
+        {showPermanent ? (
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => (referenced ? setConfirmPermanent(false) : close(false))}
+              disabled={busy}
+            >
+              {referenced ? "Back" : "Cancel"}
+            </Button>
+            <Button variant="destructive" onClick={() => void handlePermanentDelete()} disabled={busy}>
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              {referenced ? "Permanently delete" : `Delete ${assetType}`}
+            </Button>
+          </DialogFooter>
+        ) : (
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive sm:mr-auto"
+              onClick={() => setConfirmPermanent(true)}
+            >
+              Permanently delete anyway
+            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="outline" onClick={() => close(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleArchive}>
+                <Archive className="size-4" />
+                Remove from active library
+              </Button>
+            </div>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

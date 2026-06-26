@@ -6,7 +6,7 @@ import type { Brand, Product } from "@/lib/domain";
 import { PRODUCT_USAGE_LABELS } from "@/lib/domain";
 import { useResults } from "@/lib/hooks";
 import { productRepository } from "@/lib/repositories";
-import { isProductReferenced } from "@/lib/services/asset-references";
+import { countProductReferences } from "@/lib/services/asset-references";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
 import { DeleteAssetDialog } from "@/components/common/delete-asset-dialog";
@@ -75,7 +75,7 @@ export function ProductCard({
     [images.length],
   );
   const results = useResults();
-  const referenced = isProductReferenced(results, product.id);
+  const referenceCount = countProductReferences(results, product.id);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
 
   const overlays = (
@@ -93,7 +93,7 @@ export function ProductCard({
         assetType="Product"
         name={product.name}
         thumbnailUrl={product.mainImage?.url}
-        referenced={referenced}
+        referenceCount={referenceCount}
         onArchive={() => {
           productRepository.setStatus(product.id, "archived");
           toast.success(`${product.name} removed from active library`);

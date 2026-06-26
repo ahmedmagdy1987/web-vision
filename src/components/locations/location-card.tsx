@@ -6,7 +6,7 @@ import type { Location } from "@/lib/domain";
 import { LOCATION_USAGE_LABELS } from "@/lib/domain";
 import { useResults } from "@/lib/hooks";
 import { locationRepository } from "@/lib/repositories";
-import { isLocationReferenced } from "@/lib/services/asset-references";
+import { countLocationReferences } from "@/lib/services/asset-references";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ export function LocationCard({
   const [lightboxIndex, setLightboxIndex] = React.useState(0);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const archived = location.status === "archived";
-  const referenced = isLocationReferenced(useResults(), location.id);
+  const referenceCount = countLocationReferences(useResults(), location.id);
 
   return (
     <>
@@ -186,7 +186,7 @@ export function LocationCard({
       assetType="Location"
       name={location.name}
       thumbnailUrl={main?.url}
-      referenced={referenced}
+      referenceCount={referenceCount}
       onArchive={() => {
         locationRepository.setStatus(location.id, "archived");
         toast.success(`${location.name} removed from active library`);
