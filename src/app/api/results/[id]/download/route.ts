@@ -65,6 +65,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       "Content-Length": String(bytes.byteLength),
       "Content-Disposition": `attachment; filename="${filename}"`,
       "Cache-Control": "private, no-store",
+      // The Content-Type comes from a stored DB value — forbid MIME sniffing and
+      // sandbox the response so it can never be interpreted as active content.
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; sandbox",
     },
   });
 }

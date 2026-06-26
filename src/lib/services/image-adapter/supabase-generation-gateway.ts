@@ -158,6 +158,17 @@ class SupabaseGenerationGateway implements GenerationGateway {
   }
 
   async createJob(ctx: GenerationContext, jobId: string, input: GenerationRequestInput): Promise<void> {
+    // If a project is attached, it MUST belong to the caller's organization —
+    // never trust a browser-supplied projectId (org-ownership boundary).
+    if (input.projectId) {
+      const { data: project } = await this.sb
+        .from("projects")
+        .select("id")
+        .eq("id", input.projectId)
+        .eq("organization_id", ctx.orgId)
+        .maybeSingle();
+      if (!project) throw new GenerationError("NOT_FOUND", "Project not found or unavailable.");
+    }
     const { error } = await this.sb.from("generation_jobs").insert({
       id: jobId,
       organization_id: ctx.orgId,

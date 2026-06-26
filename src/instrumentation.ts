@@ -9,6 +9,17 @@ import { validateSupabaseEnv } from "@/lib/supabase/env";
 export async function register() {
   const backend = getDataBackend();
   const { ok, message } = validateSupabaseEnv(backend);
-  if (ok) console.info(`[web-vision] ${message}`);
-  else console.warn(`[web-vision] ${message}`);
+  if (ok) {
+    console.info(`[web-vision] ${message}`);
+    return;
+  }
+  console.warn(`[web-vision] ${message}`);
+  // Fail CLOSED in production: refuse to boot in Supabase mode without the
+  // required public env, rather than silently serving the unauthenticated demo
+  // backend. (Set NEXT_PUBLIC_DATA_BACKEND=local to run the demo intentionally.)
+  if (process.env.NODE_ENV === "production" && backend !== "local") {
+    throw new Error(
+      "[web-vision] Supabase env missing in production — refusing to start to avoid serving the demo backend.",
+    );
+  }
 }

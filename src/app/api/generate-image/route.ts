@@ -1,11 +1,11 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { DEFAULT_GENERATION_SETTINGS, type GenerationSettings } from "@/lib/domain";
 import { getImageProvider } from "@/lib/services/image-adapter/provider-config";
 import { requireOpenAIConfig, type OpenAIImagesClient } from "@/lib/services/image-adapter/openai-server";
 import { createSupabaseGenerationGateway } from "@/lib/services/image-adapter/supabase-generation-gateway";
 import { GenerationError, runOpenAIGeneration } from "@/lib/services/image-adapter/generation-orchestrator";
+import { GenerateImageBodySchema } from "./validation";
 
 // The OpenAI call + API key live ONLY here, on the server.
 export const runtime = "nodejs";
@@ -13,74 +13,93 @@ export const dynamic = "force-dynamic";
 
 const MAX_BODY_BYTES = 16 * 1024; // IDs + settings only — the request is tiny.
 
-/**
- * Strict, ID-ONLY request body. `.strict()` rejects any extra field (e.g. a
- * client-supplied `url` / `references`), so the browser cannot drive a server
- * fetch of arbitrary URLs (no SSRF surface).
- */
-const BodySchema = z
-  .object({
-    organizationId: z.string().min(1),
-    brandId: z.string().min(1),
-    logoId: z.string().min(1),
-    productIds: z.array(z.string().min(1)).min(1).max(8),
-    locationId: z.string().min(1),
-    settings: z
-      .object({ aspectRatio: z.enum(["1:1", "4:5", "16:9", "9:16", "4:3", "3:2", "2:3"]) })
-      .passthrough(),
-    notes: z.string().max(2000).optional(),
-    projectId: z.string().min(1).optional(),
-    idempotencyKey: z.string().min(1).max(200),
-  })
-  .strict();
-
 function err(status: number, message: string, code?: string, retryable = false) {
   return NextResponse.json({ error: message, code, retryable }, { status });
 }
 
+/**
+ * Read the request body with a HARD byte ceiling enforced on the actual bytes
+ * read (not the spoofable/absent `content-length` header), so a chunked or
+ * mislabeled oversized body cannot be buffered into memory before validation.
+ */
+async function readJsonCapped(req: Request, maxBytes: number): Promise<unknown> {
+  const reader = req.body?.getReader();
+  if (!reader) {
+    const text = await req.text();
+    if (Buffer.byteLength(text) > maxBytes) throw new RangeError("BODY_TOO_LARGE");
+    return text ? JSON.parse(text) : {};
+  }
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) {
+      total += value.byteLength;
+      if (total > maxBytes) {
+        try {
+          await reader.cancel();
+        } catch {
+          /* ignore */
+        }
+        throw new RangeError("BODY_TOO_LARGE");
+      }
+      chunks.push(value);
+    }
+  }
+  return JSON.parse(Buffer.concat(chunks.map((c) => Buffer.from(c))).toString("utf8"));
+}
+
 export async function POST(req: Request) {
   // 1. Provider is SERVER-authoritative — never trust the client / NEXT_PUBLIC.
+  //    Config-state errors are logged server-side and returned as a STATIC client
+  //    message (never echo server env/config detail to the browser).
   let provider;
   try {
     provider = getImageProvider();
   } catch (e) {
-    return err(400, (e as Error).message);
+    console.warn("[generate-image] provider config error:", (e as Error).message);
+    return err(400, "Image generation is not available.");
   }
-  if (provider !== "openai") return err(400, "Image provider is not configured for OpenAI.");
+  if (provider !== "openai") return err(400, "Image generation is not available.");
 
   // 2. Require the server-only key (no silent fallback to mock).
   let config;
   try {
     config = requireOpenAIConfig();
   } catch (e) {
-    return err(503, (e as Error).message);
+    console.warn("[generate-image] OpenAI config error:", (e as Error).message);
+    return err(503, "Image generation is temporarily unavailable.");
   }
 
-  // 3. Body-size guard + strict ID-only validation.
-  if (Number(req.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) {
-    return err(413, "Request too large.");
-  }
+  // 3. Body read with a HARD byte cap + strict ID-only validation.
   let raw: unknown;
   try {
-    raw = await req.json();
-  } catch {
+    raw = await readJsonCapped(req, MAX_BODY_BYTES);
+  } catch (e) {
+    if (e instanceof RangeError) return err(413, "Request too large.");
     return err(400, "Invalid JSON body.");
   }
-  const parsed = BodySchema.safeParse(raw);
+  const parsed = GenerateImageBodySchema.safeParse(raw);
   if (!parsed.success) return err(400, "Invalid request — send asset IDs and settings only.");
   const data = parsed.data;
 
+  // Build settings from server defaults + ONLY the whitelisted, enum-validated
+  // fields that influence the prompt. No arbitrary client field flows through.
   const settings: GenerationSettings = {
     ...DEFAULT_GENERATION_SETTINGS,
-    ...(data.settings as Partial<GenerationSettings>),
     aspectRatio: data.settings.aspectRatio,
+    ...(data.settings.visualStyle ? { visualStyle: data.settings.visualStyle } : {}),
+    ...(data.settings.placement ? { placement: data.settings.placement } : {}),
     outputCount: 1,
   };
 
   try {
     // 4. Auth + org membership + asset resolution + signed URLs + lifecycle.
     const gateway = await createSupabaseGenerationGateway();
-    const client = new OpenAI({ apiKey: config.apiKey });
+    // Retry/timeout authority lives solely in generateImageWithOpenAI — disable
+    // the SDK's own retries so they don't stack with the orchestrator loop.
+    const client = new OpenAI({ apiKey: config.apiKey, maxRetries: 0 });
     const outcome = await runOpenAIGeneration(
       { gateway, openai: client as unknown as OpenAIImagesClient, config },
       {
