@@ -9,7 +9,7 @@ const base: AccessGateInput = {
   membershipStatus: "ready",
 };
 
-describe("resolveAccessGate — no Access-pending flash for authorized users", () => {
+describe("resolveAccessGate — single-org model, no Access-pending workflow", () => {
   it("demo mode is always authorized", () => {
     expect(
       resolveAccessGate({ ...base, mode: "demo", ready: false, hasUser: false, membershipStatus: "loading" }),
@@ -42,7 +42,9 @@ describe("resolveAccessGate — no Access-pending flash for authorized users", (
     );
   });
 
-  it("Access pending ONLY after a completed, successful, empty membership check", () => {
-    expect(resolveAccessGate({ ...base, hasActiveOrg: false, membershipStatus: "ready" })).toBe("pending");
+  it("no active org after a completed check → system-setup error (NEVER Access pending)", () => {
+    expect(resolveAccessGate({ ...base, hasActiveOrg: false, membershipStatus: "ready" })).toBe(
+      "membership-error",
+    );
   });
 });

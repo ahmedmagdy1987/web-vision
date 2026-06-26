@@ -3,9 +3,11 @@
  * separated auth/membership states. Extracted so the (timing-sensitive) gating
  * logic is unit-testable without React/Supabase.
  *
- * Crucially, "pending" (no authorized membership) is returned ONLY after the
- * membership lookup has COMPLETED with no active org — never while it is still
- * loading — so an authorized user never flashes the Access-pending screen.
+ * Single-org model: there is NO "Access pending" approval workflow. Every valid
+ * account is auto-provisioned into the one Malahi org (DB trigger + server-side
+ * fallback). An authenticated user without an active org therefore means
+ * provisioning is either in progress ("Checking your access…") or it genuinely
+ * failed (a retryable system-setup error) — never a pending-approval state.
  */
 export type MembershipStatus = "loading" | "ready" | "error";
 
@@ -14,7 +16,6 @@ export type AccessGate =
   | "redirect-signin"
   | "membership-loading"
   | "membership-error"
-  | "pending"
   | "authorized";
 
 export interface AccessGateInput {
@@ -42,9 +43,9 @@ export function resolveAccessGate({
   if (!hasUser) return "redirect-signin";
   // 3. Authorized active member.
   if (hasActiveOrg) return "authorized";
-  // 4. Authenticated, but no active org yet — distinguish loading/error/pending.
-  if (membershipStatus === "error") return "membership-error";
+  // 4. Authenticated, but no active org — provisioning in progress vs. failed.
   if (membershipStatus === "loading") return "membership-loading";
-  // 5. Membership lookup completed successfully and found no active membership.
-  return "pending";
+  // 5. Membership genuinely missing or the check failed → retryable system-setup
+  //    error. NEVER an Access-pending approval screen.
+  return "membership-error";
 }
