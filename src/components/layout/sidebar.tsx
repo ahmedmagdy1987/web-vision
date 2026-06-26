@@ -24,9 +24,9 @@ export function Sidebar() {
     >
       <div
         className={cn(
-          // Integrated light brand-header band so the navy logo stays readable in
-          // dark mode without a floating white pill around it.
-          "flex h-14 items-center border-b px-3 dark:border-black/10 dark:bg-white",
+          // The logo itself goes white in dark mode (see AppLogo), so the header
+          // band stays on the sidebar surface — no white pill behind the logo.
+          "flex h-14 items-center border-b px-3",
           sidebarCollapsed ? "justify-center" : "justify-between",
         )}
       >

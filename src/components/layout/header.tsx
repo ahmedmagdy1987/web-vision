@@ -12,7 +12,7 @@ export function Header() {
       <Link
         href="/"
         aria-label="Malahi home"
-        className="rounded-md p-1 md:hidden dark:bg-white"
+        className="p-1 md:hidden"
       >
         <AppLogo collapsed />
       </Link>

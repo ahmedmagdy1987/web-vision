@@ -2,14 +2,12 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 /**
- * Official Malahi application logo (public/malahi-logo.png). Rendered exactly as
- * supplied — never redrawn, recolored, distorted or stretched. Transparency and
- * aspect ratio are preserved via `object-contain`; delivery is optimized by
- * next/image.
+ * Official Malahi application logo (public/malahi-logo.png) — the navy + teal
+ * lockup. Its native aspect ratio is always preserved via `object-contain`
+ * (never stretched, squashed or redrawn); delivery is optimized by next/image.
  *
- * The navy PNG is rendered as-is (no recolor / no CSS filter). For dark-mode
- * contrast the surrounding surface is lightened by the layout (an integrated
- * light brand-header band / panel), NOT a floating white pill around the logo.
+ * `MalahiLogo` renders the asset as-is — use it on light surfaces (the auth
+ * panels). `AppLogo` adds the dark-mode treatment for the in-app shell.
  *
  * NOTE: this is the permanent application identity — distinct from the client
  * logos employees select inside the Logo Library for mockup generation.
@@ -29,6 +27,18 @@ export function MalahiLogo({ className, imgClassName }: { className?: string; im
   );
 }
 
+/**
+ * Shell logo for the dark-capable nav (sidebar + mobile header). The navy lockup
+ * has poor contrast on those dark surfaces, so in dark mode it is rendered as a
+ * clean white silhouette — `brightness-0 invert` recolors it to white while
+ * keeping the exact shape + transparency, so there is no white backing pill/band
+ * behind it and nothing is distorted.
+ */
 export function AppLogo({ collapsed = false, className }: { collapsed?: boolean; className?: string }) {
-  return <MalahiLogo className={className} imgClassName={collapsed ? "h-6 max-w-[44px]" : "h-7"} />;
+  return (
+    <MalahiLogo
+      className={className}
+      imgClassName={cn(collapsed ? "h-6 max-w-[44px]" : "h-7", "dark:brightness-0 dark:invert")}
+    />
+  );
 }
